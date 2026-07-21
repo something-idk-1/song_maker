@@ -26,6 +26,9 @@ interface PianoRollGridProps {
   onPreviewNote: (rowIndex: number, noteName: string) => void;
   currentStep: number;
   isPlaying: boolean;
+  // 뮤직랩 기본 킷(Kick/Snare)일 때만 킥=삼각형/스네어=원처럼 종류별 모양을 보여주고,
+  // 그 외 비트킷(신스 비트, 8비트 칩튠, 국악 등)은 전부 네모 아이콘으로 통일함.
+  useShapedDrumIcons?: boolean;
 }
 
 // 키보드로 건반 미리듣기할 때 App에서 이걸 호출해서 해당 음이름의 레이블을 흰색으로 깜빡이게 함.
@@ -66,6 +69,7 @@ export const PianoRollGrid = forwardRef<PianoRollGridHandle, PianoRollGridProps>
       onPreviewNote,
       currentStep,
       isPlaying,
+      useShapedDrumIcons = true,
     },
     ref,
   ) {
@@ -73,6 +77,10 @@ export const PianoRollGrid = forwardRef<PianoRollGridHandle, PianoRollGridProps>
   const labelRefs = useRef(new Map<number, HTMLDivElement>());
   const prevFlashStepRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  // 레이블 드래그하면서 지나가는 행마다 소리 나게 하기 위한 상태.
+  // 같은 행에서 mouseenter가 여러 번 안 겹치게 lastDraggedRow로 중복 방지함.
+  const labelDraggingRef = useRef(false);
+  const lastDraggedRowRef = useRef<number | null>(null);
   const cells = activeCells ?? EMPTY_CELLS;
   const isRowVisible = (rowIndex: number) => !visibleRows || visibleRows[rowIndex];
 
@@ -80,22 +88,44 @@ export const PianoRollGrid = forwardRef<PianoRollGridHandle, PianoRollGridProps>
   const rowHeight = Math.round(BASE_ROW_HEIGHT * zoom);
   const labelWidth = Math.round(BASE_LABEL_WIDTH * zoom);
 
+  // 레이블 눌렀을 때(키보드/클릭 공용)이 행을 잠깐 어둡게 반짝이게 함.
+  const flashLabelAt = (rowIndex: number) => {
+    const el = labelRefs.current.get(rowIndex);
+    if (!el) return;
+    // 연타할 때도 애니메이션이 새로 시작되게 클래스를 뺐다가 강제로 리플로우 후 다시 붙임.
+    el.classList.remove("label-flash");
+    void el.offsetWidth;
+    el.classList.add("label-flash");
+  };
+
   useImperativeHandle(
     ref,
     () => ({
       flashNoteLabel(noteName: string) {
         const rowIndex = noteRows.indexOf(noteName);
         if (rowIndex === -1) return;
-        const el = labelRefs.current.get(rowIndex);
-        if (!el) return;
-        // 연타할 때도 애니메이션이 새로 시작되게 클래스를 뺐다가 강제로 리플로우 후 다시 붙임.
-        el.classList.remove("label-flash");
-        void el.offsetWidth;
-        el.classList.add("label-flash");
+        flashLabelAt(rowIndex);
       },
     }),
     [noteRows],
   );
+
+  // 레이블 눌러서/드래그해서 지나가는 행 소리내고 반짝이게 하는 공용 함수.
+  const playLabel = (rowIndex: number) => {
+    onPreviewNote(rowIndex, noteRows[rowIndex]);
+    flashLabelAt(rowIndex);
+    lastDraggedRowRef.current = rowIndex;
+  };
+
+  // 마우스를 어디서 떼든(레이블 밖에서 떼도) 드래그 상태를 확실히 풀어줌.
+  useEffect(() => {
+    const handleMouseUp = () => {
+      labelDraggingRef.current = false;
+      lastDraggedRowRef.current = null;
+    };
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => window.removeEventListener("mouseup", handleMouseUp);
+  }, []);
 
   // 옥타브 경계(음이름의 옥타브 숫자가 바뀌는 지점) — 마디 구분선(beat-start)이랑 같은 굵기/색으로 표시함.
   // 안 보이는 행은 건너뛰고, "화면에 실제로 보이는 바로 이전 행"이랑만 비교함.
@@ -280,6 +310,16 @@ export const PianoRollGrid = forwardRef<PianoRollGridHandle, PianoRollGridProps>
                 stickyBottom !== null ? "sticky-bottom-row" : ""
               }`}
               style={stickyBottom !== null ? { bottom: stickyBottom } : undefined}
+              onMouseDown={(e) => {
+                if (e.button !== 0) return;
+                labelDraggingRef.current = true;
+                playLabel(rowIndex);
+              }}
+              onMouseEnter={() => {
+                if (!labelDraggingRef.current) return;
+                if (lastDraggedRowRef.current === rowIndex) return;
+                playLabel(rowIndex);
+              }}
             >
               {note}
             </div>
@@ -295,6 +335,7 @@ export const PianoRollGrid = forwardRef<PianoRollGridHandle, PianoRollGridProps>
         drumStickyOffsets={drumStickyOffsets}
         visibleRows={visibleRows}
         activeCells={cells}
+        useShapedDrumIcons={useShapedDrumIcons}
         onCellMouseDown={handleCellMouseDown}
         onCellMouseEnter={handleCellMouseEnter}
         registerCellRef={(key, el) => {
@@ -315,6 +356,7 @@ interface GridBodyProps {
   drumStickyOffsets: (number | null)[];
   visibleRows?: boolean[];
   activeCells: Set<string>;
+  useShapedDrumIcons: boolean;
   onCellMouseDown: (rowIndex: number, stepIndex: number) => void;
   onCellMouseEnter: (rowIndex: number, stepIndex: number) => void;
   registerCellRef: (key: string, el: HTMLButtonElement | null) => void;
@@ -330,6 +372,7 @@ const GridBody = memo(function GridBody({
   drumStickyOffsets,
   visibleRows,
   activeCells,
+  useShapedDrumIcons,
   onCellMouseDown,
   onCellMouseEnter,
   registerCellRef,
@@ -342,7 +385,10 @@ const GridBody = memo(function GridBody({
         if (visibleRows && !visibleRows[rowIndex]) return null;
         const isFlatRow = note.includes("#");
         const stickyBottom = drumStickyOffsets[rowIndex];
-        const drumType = isDrumRowLabel(note) ? note.toLowerCase() : null;
+        const isDrum = isDrumRowLabel(note);
+        // 뮤직랩 기본 킷일 때만 킥=삼각형/스네어=원처럼 종류별 모양을 씀. 그 외 비트킷은
+        // drum-${type} 수정자 클래스를 안 붙여서 기본 네모 모양(.drum-cell.active::after 기본값)만 나옴.
+        const drumType = isDrum && useShapedDrumIcons ? note.toLowerCase() : null;
         return (
           <div
             key={note + rowIndex}
@@ -360,8 +406,9 @@ const GridBody = memo(function GridBody({
               if (isBarStart) classes.push("beat-start");
               if (isFlatRow && !active) classes.push("flat-row");
               if (active) classes.push("active");
-              if (drumType) {
-                classes.push("drum-cell", `drum-${drumType}`);
+              if (isDrum) {
+                classes.push("drum-cell");
+                if (drumType) classes.push(`drum-${drumType}`);
               }
 
               return (

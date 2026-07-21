@@ -15,20 +15,20 @@ export function Header({ mode, onModeChange, view, onViewChange, onRestart }: He
   return (
     <header className="header-bar">
       <div className="header-left">
-        <span className="logo">Music Maker</span>
+        <span className="logo">Song Maker</span>
 
         <div className="segmented-toggle">
           <button
             className={mode === "simple" ? "active" : ""}
             onClick={() => onModeChange("simple")}
           >
-            간단
+            SIMPLE
           </button>
           <button
             className={mode === "advanced" ? "active" : ""}
             onClick={() => onModeChange("advanced")}
           >
-            고급
+            ADVANCED
           </button>
         </div>
 

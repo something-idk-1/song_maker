@@ -5,13 +5,22 @@ import { PianoRollGrid, type PianoRollGridHandle } from "./components/PianoRollG
 import { PlaylistPlaceholder } from "./components/PlaylistPlaceholder";
 import { LoadingScreen } from "./components/LoadingScreen";
 import { InstrumentPicker } from "./components/InstrumentPicker";
+import { BeatKitPicker } from "./components/BeatKitPicker";
 import {
   SettingsModal,
   type GridSettings,
   type LanguageCode,
   type ThemeName,
 } from "./components/SettingsModal";
-import { buildSimpleModeRows, isDrumRowLabel, keyToNoteName } from "./lib/notes";
+import {
+  buildScaleRows,
+  buildSimpleModeRows,
+  isDrumRowLabel,
+  keyToNoteName,
+  SIMPLE_MODE_DRUM_ROW_LABELS,
+} from "./lib/notes";
+import { getNextSimpleModeInstrumentId } from "./lib/instruments";
+import { DEFAULT_BEAT_KIT_ID, getBeatKitById } from "./lib/beatKits";
 import { buildMidiBytes, midiNotesToCells, parseMidiBytes } from "./lib/midi";
 import { decodeProjectFromHash, encodeProjectToUrl } from "./lib/share";
 import { renderToAudioBuffer } from "./lib/renderAudio";
@@ -47,10 +56,17 @@ function App() {
   const [instrument, setInstrument] = useState<Instrument>("piano");
   const [bpm, setBpm] = useState(96);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [volume, setVolume] = useState(80); // 마스터 볼륨(0~100)
 
   // 멜로디 행에 쓸 악기(피아노/마림바/스트링 등) — 간단/고급 모드 둘 다 공통으로 적용됨.
-  const [instrumentId, setInstrumentId] = useState("piano");
+  // 간단 모드 기본값은 마림바(SIMPLE_MODE_INSTRUMENT_CYCLE 참고).
+  const [instrumentId, setInstrumentId] = useState("marimba");
   const [showInstrumentPicker, setShowInstrumentPicker] = useState(false);
+
+  // 드럼 행에 쓸 비트킷(lib/beatKits.ts) — 고급 모드 전용으로 고를 수 있음. 간단 모드는 항상
+  // 뮤직랩 기본(Kick/Snare)으로 고정이라 이 값은 무시됨(noteRows 계산 참고).
+  const [beatKitId, setBeatKitId] = useState(DEFAULT_BEAT_KIT_ID);
+  const [showBeatKitPicker, setShowBeatKitPicker] = useState(false);
 
   const [settings, setSettings] = useState<GridSettings>(DEFAULT_SETTINGS);
   const [draftSettings, setDraftSettings] = useState<GridSettings>(DEFAULT_SETTINGS);
@@ -83,15 +99,22 @@ function App() {
 
   const stepCount = settings.bars * settings.beatsPerBar * settings.splitBeatsInto;
 
-  // 이제 모드 상관없이 데이터는 항상 "멜로디 스케일 행 + 드럼 행(Kick/Snare/HiHat)"을 합친 하나의
-  // 그리드로 관리함(간단 모드랑 똑같은 구조). 그래야 고급 모드에서 피아노/드럼 토글을 눌러도
-  // 그 안에 찍힌 노트가 서로 안 섞이고, 재생할 때도 지금 안 보이는 쪽(예: 드럼 보는 동안의 멜로디)까지
-  // 같이 소리 남 — FL스튜디오 채널랙처럼 "패턴은 다 같이 재생되고, 화면엔 하나씩만 보여줌".
-  const noteRows = useMemo(
-    () =>
-      buildSimpleModeRows(settings.scale, settings.startNote, settings.startOctave, settings.rangeOctaves),
-    [settings],
-  );
+  // 멜로디 스케일 행 + 드럼 행을 합친 하나의 그리드로 관리함. 그래야 고급 모드에서 피아노/드럼
+  // 토글을 눌러도 그 안에 찍힌 노트가 서로 안 섞이고, 재생할 때도 지금 안 보이는 쪽(예: 드럼 보는
+  // 동안의 멜로디)까지 같이 소리 남 — FL스튜디오 채널랙처럼 "패턴은 다 같이 재생되고, 화면엔
+  // 하나씩만 보여줌". 드럼 행 자체는 모드에 따라 다름: 간단 모드는 항상 뮤직랩 기본(Kick/Snare)
+  // 고정, 고급 모드는 선택된 비트킷의 행을 그대로 씀(킷마다 행 개수가 다를 수 있음).
+  const noteRows = useMemo(() => {
+    const melodyRows = buildScaleRows(
+      settings.scale,
+      settings.startNote,
+      settings.startOctave,
+      settings.rangeOctaves,
+    );
+    const drumRows =
+      mode === "simple" ? SIMPLE_MODE_DRUM_ROW_LABELS : getBeatKitById(beatKitId).rowLabels;
+    return [...melodyRows, ...drumRows];
+  }, [settings, mode, beatKitId]);
 
   // 행이 멜로디인지 드럼인지로 자동 결정 — 더 이상 instrument 토글이 소리를 바꾸지 않음
   // (토글은 이제 "어떤 행을 화면에 보여줄지"만 담당함. 이후 "악기 선택"이 추가되면 그때 소리를 바꿈).
@@ -150,6 +173,8 @@ function App() {
     isPlaying,
     rowInstruments,
     instrumentId,
+    masterVolumePercent: volume,
+    beatKitId,
   });
 
   // 스페이스바로 재생/정지, Ctrl/Cmd+Z로 되돌리기(Shift 누르면 다시하기),
@@ -199,6 +224,32 @@ function App() {
     setHistoryIndex(0);
   }, []);
 
+  // 간단 모드용 악기 버튼 — 팝업을 여는 대신 정해진 순서(마림바→피아노→바이올린→플루트→신스→마림바...)로
+  // 누를 때마다 다음 악기로 바로 넘어감.
+  const handleCycleInstrument = useCallback(() => {
+    setInstrumentId((current) => getNextSimpleModeInstrumentId(current));
+  }, []);
+
+  // 고급 모드 비트킷 선택 — 킷마다 행 개수/이름이 달라서(뮤직랩 기본=2행, 8비트 칩튠=12행 등)
+  // 킷을 바꾸면 기존 드럼 행 인덱스가 더 이상 안 맞을 수 있음. 그래서 멜로디 행(항상 킷과 무관하게
+  // 고정된 개수)보다 뒤에 있는 드럼 쪽 노트는 킷 전환 시 정리하고, 멜로디 노트는 그대로 둠.
+  const handleSelectBeatKit = useCallback(
+    (id: string) => {
+      const melodyRowCount = buildScaleRows(
+        settings.scale,
+        settings.startNote,
+        settings.startOctave,
+        settings.rangeOctaves,
+      ).length;
+      const filtered = new Set(
+        [...activeCells].filter((key) => Number(key.split(":")[0]) < melodyRowCount),
+      );
+      setBeatKitId(id);
+      commitCells(filtered);
+    },
+    [settings, activeCells, commitCells],
+  );
+
   const handleOpenSettings = useCallback(() => {
     setDraftSettings(settings);
     setShowSettings(true);
@@ -241,7 +292,7 @@ function App() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "music-maker.mid";
+    a.download = "song-maker.mid";
     a.click();
     URL.revokeObjectURL(url);
   }, [noteRows, activeCells, bpm]);
@@ -277,7 +328,7 @@ function App() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "music-maker.wav";
+    a.download = "song-maker.wav";
     a.click();
     URL.revokeObjectURL(url);
   }, [noteRows, activeCells, rowInstruments, stepCount, bpm]);
@@ -343,6 +394,7 @@ function App() {
             onPreviewNote={previewNote}
             currentStep={currentStep}
             isPlaying={isPlaying}
+            useShapedDrumIcons={mode === "simple" || beatKitId === "musiclab_default"}
           />
         ) : (
           <PlaylistPlaceholder />
@@ -370,7 +422,12 @@ function App() {
         onOpenSettings={handleOpenSettings}
         instrumentId={instrumentId}
         onOpenInstrumentPicker={() => setShowInstrumentPicker(true)}
+        onCycleInstrument={handleCycleInstrument}
         experimentalFeatures={experimentalFeatures}
+        volume={volume}
+        onVolumeChange={setVolume}
+        beatKitId={beatKitId}
+        onOpenBeatKitPicker={() => setShowBeatKitPicker(true)}
       />
 
       {showInstrumentPicker && (
@@ -378,6 +435,14 @@ function App() {
           selectedId={instrumentId}
           onSelect={setInstrumentId}
           onClose={() => setShowInstrumentPicker(false)}
+        />
+      )}
+
+      {showBeatKitPicker && (
+        <BeatKitPicker
+          selectedId={beatKitId}
+          onSelect={handleSelectBeatKit}
+          onClose={() => setShowBeatKitPicker(false)}
         />
       )}
 

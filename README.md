@@ -1,4 +1,4 @@
-# Music Maker
+# Song Maker
 
 브라우저에서 그리드를 클릭해서 MIDI 패턴을 만들고, 여러 악기로 재생해보는 미니 작곡 툴. BandLab/FL Studio를 참고한 화이트모드 UI, 헤더+캔버스+트랜스포트바 구조.
 

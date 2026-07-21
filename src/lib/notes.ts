@@ -1,4 +1,5 @@
 import { NOTE_NAMES, SCALES, type ScaleName } from "./scales";
+import { BEAT_KITS } from "./beatKits";
 
 export function midiToNoteName(midi: number): string {
   const name = NOTE_NAMES[midi % 12];
@@ -109,15 +110,22 @@ export function isCNote(noteName: string): boolean {
   return noteName.startsWith("C") && !noteName.startsWith("C#");
 }
 
-// 간단 모드에서 멜로디 스케일 행 밑에 추가되는 고정 드럼 행.
-export const DRUM_ROW_LABELS = ["Kick", "Snare", "HiHat"] as const;
+// 예전엔 Kick/Snare/HiHat 3개만 있었지만, 이제 비트킷(lib/beatKits.ts)마다 행 이름이 완전히
+// 달라짐(8비트 칩튠="1".."12", 국악="장구1" 등). 그래서 "드럼 행이냐 아니냐"는 지금 존재하는
+// 모든 비트킷의 rowLabels를 통틀어서 판별함 — 멜로디 음이름(예: "C4", "D#5")이랑 겹칠 일이
+// 없어서 안전함.
+const ALL_DRUM_ROW_LABELS = new Set(BEAT_KITS.flatMap((kit) => kit.rowLabels));
+
+// 간단 모드는 항상 뮤직랩 기본 비트킷(Kick 위, Snare 아래)으로 고정됨 — 킷을 바꿀 수 없음.
+// 고급 모드에서는 선택된 비트킷의 rowLabels를 씀.
+export const SIMPLE_MODE_DRUM_ROW_LABELS = ["Kick", "Snare"] as const;
 
 export function isDrumRowLabel(label: string): boolean {
-  return (DRUM_ROW_LABELS as readonly string[]).includes(label);
+  return ALL_DRUM_ROW_LABELS.has(label);
 }
 
 /**
- * 간단 모드용 그리드 행 = 멜로디 스케일 행 + 드럼 행(Kick/Snare/HiHat).
+ * 간단 모드용 그리드 행 = 멜로디 스케일 행 + 드럼 행(지금은 Kick/Snare 고정).
  * 하나의 그리드에서 멜로디랑 드럼을 동시에 찍을 수 있게 함.
  */
 export function buildSimpleModeRows(
@@ -126,5 +134,8 @@ export function buildSimpleModeRows(
   startOctave: number,
   rangeOctaves: number,
 ): string[] {
-  return [...buildScaleRows(scale, startNote, startOctave, rangeOctaves), ...DRUM_ROW_LABELS];
+  return [
+    ...buildScaleRows(scale, startNote, startOctave, rangeOctaves),
+    ...SIMPLE_MODE_DRUM_ROW_LABELS,
+  ];
 }

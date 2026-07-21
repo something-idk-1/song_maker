@@ -201,14 +201,14 @@ components:
 
 ## Overview
 
-Music Maker (piano roll build) is a clean, monochrome production tool — white canvas (`{colors.canvas}`), black primary action color (`{colors.primary}` — #111111) for the play button, active toggles, and the save button, and quiet gray surfaces (`{colors.surface-soft}` — #F3F4F7) for grouped controls. This build currently uses **no color accent at all** — every previous neon/dark-mode direction has been dropped in favor of a BandLab-style neutral canvas. Color is deliberately deferred (see Known Gaps) — right now the system runs on contrast and weight alone: black fills = active/primary, gray fills = grouped-but-inactive, white + hairline = default.
+Song Maker (piano roll build) is a clean, monochrome production tool — white canvas (`{colors.canvas}`), black primary action color (`{colors.primary}` — #111111) for the play button, active toggles, and the save button, and quiet gray surfaces (`{colors.surface-soft}` — #F3F4F7) for grouped controls. This build currently uses **no color accent at all** — every previous neon/dark-mode direction has been dropped in favor of a BandLab-style neutral canvas. Color is deliberately deferred (see Known Gaps) — right now the system runs on contrast and weight alone: black fills = active/primary, gray fills = grouped-but-inactive, white + hairline = default.
 
 **Client environment:** Desktop-first web app. Design reference frame is 1920×1080 — this is the canvas size used while laying out the screen in the design tool, not a native resolution lock; the built page is still a normal responsive web app that reflows below 1920px.
 
 **Navigation model:** No left sidebar. Everything lives in two fixed bars: a **header** (top, 56px) and a **transport bar** (bottom, 64px). The piano roll / playlist views share both bars — only the center content of the header and the main canvas change between views.
 
 **Header layout (fixed convention, shared by every screen):**
-- Logo/wordmark ("Music Maker"): far top-left corner.
+- Logo/wordmark ("Song Maker"): far top-left corner.
 - Center-left zone: view-specific tool cluster (see below — differs between Piano Roll and Playlist).
 - Center-right zone: `{component.nav-pill-group}` — two panels only: "플레이리스트" / "피아노 롤" (Channel Rack is excluded from the header — not a nav destination in this build), pill-in-pill style (inactive pill transparent + gray text, active pill white + shadow, matching the pattern used in Cal.com-style nav-pill systems). Each pill also carries a small **maximize** icon (FL Studio: "maximize playlist" / "maximize piano roll") that expands that panel to fill the entire main canvas, temporarily hiding the other panel — this is a view mode, not a navigation destination, so it toggles independently of which pill is selected.
 - Far top-right corner: settings gear icon, then profile avatar circle.
