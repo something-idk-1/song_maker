@@ -35,7 +35,7 @@ export function LoadingScreen({ onFinish, minDurationMs = 2000 }: LoadingScreenP
             style={{ animationDelay: `${i * 90}ms` }}
           />
         ))}
-        {BLACK_KEY_AFTER_WHITE_INDEX.map((whiteIndex, i) => (
+        {BLACK_KEY_AFTER_WHITE_INDEX.map((whiteIndex) => (
           <div
             key={`black-${whiteIndex}`}
             className="loading-key loading-key-black"

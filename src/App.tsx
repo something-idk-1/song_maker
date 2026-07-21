@@ -288,7 +288,9 @@ function App() {
 
   const handleExportMidi = useCallback(() => {
     const bytes = buildMidiBytes({ noteRows, activeCells, bpm });
-    const blob = new Blob([bytes], { type: "audio/midi" });
+    // TS 최신 lib.dom 타입에서 Uint8Array가 제네릭(ArrayBufferLike)이 돼서 Blob의 BlobPart랑
+    // 타입이 안 맞는 경우가 있음 — 평범한 ArrayBuffer 기반 Uint8Array로 복사해서 넘겨줌.
+    const blob = new Blob([new Uint8Array(bytes)], { type: "audio/midi" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
