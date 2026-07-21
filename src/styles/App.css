@@ -18,18 +18,110 @@ body,
   height: 100vh;
 }
 
+/* ---------- Loading screen ---------- */
+.loading-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  background: var(--color-canvas);
+  transition: opacity 400ms ease;
+  opacity: 1;
+}
+
+.loading-screen-fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loading-piano {
+  position: relative;
+  display: flex;
+  height: 96px;
+}
+
+.loading-key {
+  transform-origin: top center;
+}
+
+.loading-key-white {
+  width: 25px;
+  height: 96px;
+  margin-right: -1px;
+  background: var(--color-canvas);
+  border: 1px solid var(--color-hairline-strong);
+  border-radius: 0 0 4px 4px;
+  animation: key-press-white 1.6s ease-in-out infinite;
+}
+
+.loading-key-black {
+  position: absolute;
+  top: 0;
+  z-index: 2;
+  width: 16px;
+  height: 58px;
+  background: var(--color-primary);
+  border-radius: 0 0 3px 3px;
+  animation: key-press-black 1.6s ease-in-out infinite;
+}
+
+@keyframes key-press-white {
+  0%,
+  100% {
+    transform: translateY(0);
+    background: var(--color-canvas);
+  }
+  15% {
+    transform: translateY(6px);
+    background: var(--color-surface-soft);
+  }
+}
+
+@keyframes key-press-black {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  15% {
+    transform: translateY(4px);
+  }
+}
+
+.loading-spinner {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 3px solid var(--color-hairline-strong);
+  border-top-color: var(--color-primary);
+  animation: spin 800ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* ---------- Header ---------- */
+/* 3열 그리드(좌/가운데/우)로 바꿔서 nav-pill-group(플레이리스트/피아노 롤)이 헤더 폭 전체 기준으로
+   진짜 가운데 오게 함 — flex space-between이었을 땐 자식 개수에 따라 위치가 흔들렸었음. */
 .header-bar {
   height: var(--header-height);
   border-bottom: 1px solid var(--color-hairline);
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
+  column-gap: 12px;
   padding: 0 20px;
   flex-shrink: 0;
 }
 
 .header-left {
+  grid-column: 1;
   display: flex;
   align-items: center;
   gap: 20px;
@@ -66,6 +158,7 @@ body,
 }
 
 .nav-pill-group {
+  grid-column: 2;
   display: flex;
   gap: 2px;
   background: var(--color-surface-soft);
@@ -91,9 +184,27 @@ body,
 }
 
 .header-right {
+  grid-column: 3;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 12px;
+}
+
+.header-restart-button {
+  border: 1px solid var(--color-hairline);
+  background: var(--color-canvas);
+  color: var(--color-body);
+  border-radius: var(--radius-md);
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.header-restart-button:hover {
+  background: var(--color-surface-soft);
+  color: var(--color-ink);
 }
 
 .icon-button-ghost {
@@ -123,8 +234,12 @@ body,
 }
 
 /* ---------- Main content ---------- */
+/* min-height: 0이 핵심 — flex 자식은 기본적으로 min-height:auto라서 내용(간단모드 드럼 행까지 포함한
+   전체 그리드)만큼 커져버리고, 그 안의 .piano-roll의 overflow:auto가 먹통이 되면서 트랜스포트바 위에
+   내용이 밀려나 "고정된 것처럼" 보이는 버그가 있었음. */
 .main-content {
   flex: 1;
+  min-height: 0;
   overflow: hidden;
   position: relative;
 }
@@ -136,19 +251,56 @@ body,
   height: 100%;
   overflow: auto;
   display: flex;
+  /* align-items 기본값(stretch)이면 라벨/그리드 컬럼이 실제 행 개수보다 더 길게 늘어남.
+     내용이 컨테이너보다 짧을 때(고급 모드처럼 행이 적을 때) 위쪽이나 아래쪽에 치우쳐서
+     빈 공간이 남는 것보다, 세로로 가운데 정렬해서 여백이 위아래로 고르게 나뉘게 함.
+     내용이 넘칠 땐 원래대로 스크롤됨(overflow: auto). */
+  align-items: safe center;
+  background: var(--color-canvas);
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-primary) var(--color-surface-soft);
+  /* --cell-w/--cell-h/--label-w는 PianoRollGrid가 zoom 배율로 계산해서 인라인으로 넣어줌 */
+}
+
+/* 커스텀 스크롤바 — 트랙은 은은한 회색, 손잡이는 파란 알약 모양으로 살짝 떠 있게(border로 여백 표현) */
+.piano-roll::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+}
+
+.piano-roll::-webkit-scrollbar-track {
+  background: var(--color-surface-soft);
+}
+
+.piano-roll::-webkit-scrollbar-thumb {
+  background: var(--color-primary);
+  border-radius: var(--radius-pill);
+  border: 3px solid var(--color-surface-soft);
+  background-clip: padding-box;
+}
+
+.piano-roll::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary-active);
+  background-clip: padding-box;
+}
+
+.piano-roll::-webkit-scrollbar-corner {
   background: var(--color-surface-soft);
 }
 
 .piano-roll-labels {
-  position: sticky;
-  left: 0;
-  z-index: 2;
   background: var(--color-surface-soft);
 }
 
+/* left-sticky를 래퍼(.piano-roll-labels)가 아니라 행마다 직접 줌 — 드럼 행은 나중에
+   bottom sticky도 추가로 받는데, 부모/자식이 이중으로 sticky를 쓰면 브라우저에 따라
+   세로 고정이 씹히는 경우가 있어서 한 요소에서 좌/하단 sticky를 같이 처리하게 함. */
 .piano-roll-row-label {
-  height: 32px;
-  width: 56px;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  height: var(--cell-h, 32px);
+  width: var(--label-w, 56px);
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -157,41 +309,51 @@ body,
   font-weight: 500;
   color: var(--color-muted);
   font-family: var(--font-mono);
-  border-right: 1px solid var(--color-hairline);
-  border-bottom: 1px solid var(--color-hairline);
+  border-right: 1px solid var(--color-grid-line);
+  border-bottom: 1px solid var(--color-grid-line);
   box-sizing: border-box;
 }
 
 .piano-roll-grid {
   position: relative;
   display: inline-block;
-  border-top: 1px solid var(--color-hairline);
-  border-left: 1px solid var(--color-hairline);
+  background: var(--color-surface-soft);
+  border-top: 1px solid var(--color-grid-line);
+  border-left: 1px solid var(--color-grid-line);
+  user-select: none;
 }
 
 .piano-roll-row {
   display: flex;
-  height: 32px;
+  height: var(--cell-h, 32px);
 }
 
+/* 버튼 기본 여백/보더/아웃라인 다 리셋 — 셀 사이에 여백처럼 보이던 게 브라우저 기본 버튼 스타일 때문이었음 */
 .grid-cell {
-  width: 44px;
-  height: 32px;
-  border-right: 1px solid var(--color-hairline);
-  border-bottom: 1px solid var(--color-hairline);
-  cursor: pointer;
+  width: var(--cell-w, 44px);
+  height: var(--cell-h, 32px);
+  margin: 0;
   padding: 0;
+  border: none;
+  border-right: 1px solid var(--color-grid-line);
+  border-bottom: 1px solid var(--color-grid-line);
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  font: inherit;
+  cursor: pointer;
   background: var(--color-canvas);
-  transition: background 0.08s;
   box-sizing: border-box;
+  /* 여기엔 transition을 안 둠 — 노트를 찍을 때(클릭/드래그)는 즉시 색이 바뀌어야 함.
+     재생 플래시의 페이드아웃은 아래 @keyframes 애니메이션으로 따로 처리함. */
 }
 
 .grid-cell:hover {
   background: var(--color-hairline-strong);
 }
 
-/* Song Maker 참고: 박자(beat)마다 세로 밴드를 교차 음영 — 색상 자체는 파란색 대신 우리 톤(연회색)으로 */
-.grid-cell.shaded {
+/* 크로매틱 모드에서 반음(#) 행은 기본 배경을 살짝 회색으로 — 마디별 음영은 다시 흰색으로 되돌림 */
+.grid-cell.flat-row {
   background: var(--color-surface-soft);
 }
 
@@ -203,13 +365,117 @@ body,
   border-left: 1px solid var(--color-hairline-strong);
 }
 
-.playhead-cursor {
+/* 간단 모드 드럼 행(Kick/Snare/HiHat) 하단 고정 — 스크롤해도 트랜스포트 바 바로 위에 계속 보이게 함.
+   label/grid 양쪽 다 같은 방식으로 sticky bottom을 걸고, 위에 있는 멜로디 행들 위로 그려지게 z-index를 줌. */
+.piano-roll-row-label.sticky-bottom-row,
+.piano-roll-row.sticky-bottom-row {
+  position: sticky;
+  z-index: 3;
+  background: var(--color-canvas);
+}
+
+.piano-roll-row-label.sticky-bottom-row {
+  background: var(--color-surface-soft);
+}
+
+/* 옥타브 경계선 — 마디 구분선(beat-start)이랑 같은 색/굵기(1px, hairline-strong) */
+.piano-roll-row.octave-start {
+  border-top: 1px solid var(--color-hairline-strong);
+}
+
+.piano-roll-row-label.octave-start {
+  border-top: 1px solid var(--color-hairline-strong);
+}
+
+/* 재생 중 현재 스텝 컬럼이 잠깐 깜빡이는 효과. 노트 찍을 때는 transition이 없어서 즉시 바뀌지만,
+   플래시는 애니메이션(@keyframes)으로 따로 처리해서 "밝아졌다가 페이드아웃"이 됨. */
+@keyframes flash-fade-active {
+  from {
+    background: var(--color-flash);
+  }
+  to {
+    background: var(--color-primary);
+  }
+}
+
+@keyframes flash-fade-empty {
+  from {
+    background: var(--color-hairline-strong);
+  }
+  to {
+    background: var(--color-canvas);
+  }
+}
+
+.grid-cell.flash-empty {
+  animation: flash-fade-empty 260ms ease-out forwards;
+}
+
+.grid-cell.flash-active {
+  animation: flash-fade-active 260ms ease-out forwards;
+}
+
+/* 키보드로 건반 미리듣기할 때 해당 음이름 레이블이 진한 회색으로 반짝였다가 원래대로 돌아옴 */
+@keyframes label-flash-fade {
+  from {
+    background: var(--color-body);
+    color: var(--color-on-primary);
+  }
+  to {
+    background: transparent;
+    color: var(--color-muted);
+  }
+}
+
+.piano-roll-row-label.label-flash {
+  animation: label-flash-fade 260ms ease-out forwards;
+}
+
+/* 간단 모드 드럼 행 전용 스타일 — 멜로디 셀처럼 배경을 꽉 채우는 대신, 비어있을 땐 작은 회색 점,
+   찍혀있을 땐 드럼 종류별로 다른 도형(Kick=삼각형/Snare=원/HiHat=마름모)의 파란 아이콘을 보여줌. */
+.grid-cell.drum-cell {
+  position: relative;
+}
+
+.grid-cell.drum-cell::after {
+  content: "";
   position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: var(--color-primary);
-  pointer-events: none;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-hairline-strong);
+  transform: translate(-50%, -50%);
+}
+
+/* .grid-cell.active의 어두운 배경 채우기를 취소하고, 대신 아이콘만 키움 */
+.grid-cell.drum-cell.active {
+  background: var(--color-canvas);
+}
+
+.grid-cell.drum-cell.flat-row {
+  background: var(--color-canvas);
+}
+
+.grid-cell.drum-cell.active::after {
+  width: 14px;
+  height: 14px;
+  border-radius: 0;
+  background: var(--color-accent-blue);
+  transform: translate(-50%, -50%);
+}
+
+.grid-cell.drum-kick.active::after {
+  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+}
+
+.grid-cell.drum-snare.active::after {
+  border-radius: 50%;
+}
+
+.grid-cell.drum-hihat.active::after {
+  transform: translate(-50%, -50%) rotate(45deg);
 }
 
 .playlist-placeholder {
@@ -282,6 +548,97 @@ body,
   color: var(--color-on-primary);
 }
 
+.instrument-select-button {
+  border: 1px solid var(--color-hairline);
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  border-radius: var(--radius-md);
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.instrument-select-button:hover {
+  background: var(--color-surface-soft);
+}
+
+/* ---------- 악기 선택 팝업 ---------- */
+.instrument-picker {
+  background: var(--color-canvas);
+  border-radius: var(--radius-lg);
+  padding: 24px 28px 28px;
+  width: 420px;
+  max-width: 90vw;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.instrument-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.instrument-category {
+  margin-bottom: 18px;
+}
+
+.instrument-category-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 8px;
+}
+
+.instrument-category-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.instrument-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  border: 1px solid var(--color-hairline);
+  background: var(--color-canvas);
+  border-radius: var(--radius-md);
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.instrument-item:hover {
+  background: var(--color-surface-soft);
+}
+
+.instrument-item-active {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  border-color: var(--color-primary);
+}
+
+.instrument-item-note {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--color-muted-soft);
+}
+
+.instrument-item-active .instrument-item-note {
+  color: var(--color-on-primary);
+  opacity: 0.7;
+}
+
 .transport-step-readout {
   font-family: var(--font-mono);
   font-size: 13px;
@@ -316,12 +673,23 @@ body,
 }
 
 .bpm-stepper input {
-  width: 36px;
+  width: 30px;
+  min-width: 0;
+  flex: 0 0 auto;
   border: none;
   background: transparent;
   font-family: var(--font-mono);
   font-size: 13px;
   text-align: right;
+  /* 숫자 입력창 옆에 스핀 화살표(브라우저 기본)가 붙으면 3자리(100~220)일 때 잘려 보여서 없앰 */
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.bpm-stepper input::-webkit-outer-spin-button,
+.bpm-stepper input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .bpm-stepper span {
@@ -363,6 +731,41 @@ body,
   cursor: default;
 }
 
+/* ---------- 프로젝트 메뉴 (저장/MIDI 불러오기·내보내기/링크 복사를 하나로 묶음) ---------- */
+.file-menu {
+  position: relative;
+}
+
+.file-menu-panel {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  background: var(--color-canvas);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+}
+
+.file-menu-item {
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.file-menu-item:hover {
+  background: var(--color-surface-soft);
+}
+
 /* ---------- Settings modal ---------- */
 .modal-overlay {
   position: fixed;
@@ -382,10 +785,152 @@ body,
   max-width: 90vw;
 }
 
+.modal-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--color-surface-soft);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  margin-bottom: 24px;
+}
+
+.modal-tab {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--color-muted);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.modal-tab.active {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
 .modal-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   column-gap: 48px;
+}
+
+/* "피아노 롤 설정" 탭 전용 레이아웃 — 1번째 줄 2개(Length/Scale), 2번째 줄 3개(Octave/Note/Range) */
+.modal-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.modal-settings-row {
+  display: grid;
+  gap: 24px;
+}
+
+.modal-settings-row-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.modal-settings-row-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0 16px;
+  border-bottom: 1px solid var(--color-hairline);
+}
+
+.modal-field-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 마디 수가 권장치(16)를 넘으면 뜨는 경고 아이콘 — 브라우저 기본 title 툴팁을 그대로 씀 */
+.modal-field-warning {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #e0a030;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: none;
+  cursor: help;
+}
+
+/* 개별 설정 탭의 실험 기능 on/off 스위치 */
+.modal-toggle {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+}
+
+.modal-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.modal-toggle-track {
+  position: absolute;
+  inset: 0;
+  background: var(--color-hairline-strong);
+  border-radius: var(--radius-pill);
+  transition: background 150ms ease;
+}
+
+.modal-toggle-track::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--color-canvas);
+  transition: transform 150ms ease;
+}
+
+.modal-toggle input:checked + .modal-toggle-track {
+  background: var(--color-primary);
+}
+
+.modal-toggle input:checked + .modal-toggle-track::before {
+  transform: translateX(18px);
+}
+
+.modal-field .modal-select {
+  width: 100%;
+}
+
+.modal-field .stepper {
+  justify-content: space-between;
+}
+
+.modal-grid-single {
+  grid-template-columns: 1fr;
+}
+
+.modal-hint {
+  font-size: 12px;
+  color: var(--color-muted);
+  margin: 12px 0 0;
 }
 
 .modal-column {

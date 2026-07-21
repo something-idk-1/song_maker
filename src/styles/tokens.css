@@ -13,7 +13,10 @@
   --color-muted-soft: #b4b4bc;
   --color-hairline: #dadee6;
   --color-hairline-strong: #c7ccd6;
+  --color-grid-line: #edeef2;
+  --color-flash: #ffffff;
   --color-on-primary: #ffffff;
+  --color-accent-blue: #2f88f0;
 
   --color-track-1: #5b6bd6;
   --color-track-2: #d6685b;
