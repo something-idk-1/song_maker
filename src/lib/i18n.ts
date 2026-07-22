@@ -1,7 +1,3 @@
-// 아주 단순한 자체 i18n — 라이브러리 없이 { 영어, 한국어 } 쌍을 문자열 키로 찾아 쓰는 방식.
-// SettingsModal의 "언어 설정" 드롭다운(LanguageCode)이 실제로 이 딕셔너리를 통해 전체 UI
-// 텍스트를 바꾸게 함. 새 UI 텍스트를 추가할 땐 여기 STRINGS에 키를 하나 추가하고,
-// 컴포넌트에서는 `t(language, "그 키")`로 불러다 쓰면 됨.
 export type Language = "en" | "ko";
 
 type StringKey = keyof typeof STRINGS;
@@ -45,6 +41,12 @@ const STRINGS = {
   },
   "settings.decrease": { en: "Decrease", ko: "감소" },
   "settings.increase": { en: "Increase", ko: "증가" },
+  "settings.experimentalPrefix": { en: "Currently testing:", ko: "현재 실험 중:" },
+
+  "experimental.midiImport": { en: "MIDI Import", ko: "MIDI 불러오기" },
+  "experimental.octaveTranspose": { en: "Ctrl+Arrow Octave Transpose", ko: "Ctrl+화살표 옥타브 이동" },
+  "experimental.longerBars": { en: "Extended Length (up to 25 bars)", ko: "마디 길이 확장 (최대 25마디)" },
+  "experimental.higherBpm": { en: "Extended BPM (up to 500)", ko: "BPM 확장 (최대 500)" },
 
   "export.close": { en: "Close", ko: "닫기" },
   "export.fileName": { en: "File name", ko: "파일 이름" },
@@ -106,7 +108,13 @@ export function t(language: Language, key: StringKey): string {
   return STRINGS[key]?.[language] ?? STRINGS[key]?.en ?? key;
 }
 
-// 로딩 화면에 랜덤으로 뜨는 팁 목록 — LoadingScreen.tsx에서 language에 맞춰 t()로 문구를 가져다 씀.
+export const EXPERIMENTAL_FEATURE_KEYS: StringKey[] = [
+  "experimental.midiImport",
+  "experimental.octaveTranspose",
+  "experimental.longerBars",
+  "experimental.higherBpm",
+];
+
 export const LOADING_TIP_KEYS: StringKey[] = [
   "tip.spacePlay",
   "tip.undoRedo",

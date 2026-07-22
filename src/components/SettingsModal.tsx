@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { NOTE_NAMES, SCALE_NAMES, type ScaleName } from "../lib/scales";
-import { t, type Language } from "../lib/i18n";
+import { EXPERIMENTAL_FEATURE_KEYS, t, type Language } from "../lib/i18n";
 
 export interface GridSettings {
   bars: number;
@@ -13,8 +13,6 @@ export interface GridSettings {
 }
 
 export type ThemeName = "monochrome";
-// lib/i18n.ts의 Language를 그대로 재수출함 — 이 파일이 "언어 설정" UI의 원래 자리라서 이름은
-// 유지하되, 실제 타입/문구는 i18n.ts 한 군데에서만 관리함.
 export type LanguageCode = Language;
 
 interface SettingsModalProps {
@@ -30,18 +28,12 @@ interface SettingsModalProps {
   onExperimentalFeaturesChange: (enabled: boolean) => void;
 }
 
-const BARS_RECOMMENDED_MAX = 16;
+export const BARS_DEFAULT_MAX = 16;
+export const BARS_EXPERIMENTAL_MAX = 25;
 
-// 2는 목록에 직접 넣어서 고를 수 있게 하진 않지만, Range 4옥타브 + Middle 조합일 때
-// 자동으로 2로 내려가는 경우가 있어서(Middle을 진짜 가운데로 두려고) 드롭다운에 그 값이
-// 선택된 채로 정상 표시되려면 옵션 목록에도 있어야 함.
 const OCTAVE_OPTIONS = [2, 3, 4, 5, 6];
 type Tab = "piano-roll" | "personal";
 
-// Chrome Music Lab 의 Song Maker 설정 화면 레이아웃 참고 — Length(좌측), Scale/Start on/Range(우측), 가운데 확인 버튼.
-// Beats per bar / Split beats into는 사용자 요청으로 UI에서 뺐음 (내부적으로는 기본값 4/2로 고정 사용).
-// 설정을 "피아노 롤 설정"(그리드 구조 — 확인 버튼 눌러야 적용)과 "개별 설정"(테마/언어 — 바로 적용)
-// 두 탭으로 나눔. 개별 설정은 그리드를 안 건드리니까 onChange 즉시 반영, 확인 버튼과 무관하게 동작함.
 export function SettingsModal({
   settings,
   onChange,
@@ -80,22 +72,12 @@ export function SettingsModal({
             <div className="modal-settings">
               <div className="modal-settings-row modal-settings-row-2">
                 <div className="modal-field">
-                  <span className="modal-field-label">
-                    Length
-                    {settings.bars > BARS_RECOMMENDED_MAX && (
-                      <span
-                        className="modal-field-warning"
-                        title={`${BARS_RECOMMENDED_MAX} bars is the recommended max. Going higher may slow the grid down.`}
-                      >
-                        !
-                      </span>
-                    )}
-                  </span>
+                  <span className="modal-field-label">Length</span>
                   <Stepper
                     value={settings.bars}
                     unit="bars"
                     min={1}
-                    max={25}
+                    max={experimentalFeatures ? BARS_EXPERIMENTAL_MAX : BARS_DEFAULT_MAX}
                     onChange={(v) => update({ bars: v })}
                     language={language}
                   />
@@ -153,11 +135,6 @@ export function SettingsModal({
                     min={1}
                     max={4}
                     onChange={(v) => {
-                      // Range를 4옥타브로 올릴 때 시작 옥타브가 "Middle"(4)이면, 정말로 4를
-                      // 가운데로 두고 위아래로 펼쳐지게 함 — 4옥타브 범위는 시작 옥타브부터 위로
-                      // 4칸을 쌓으니까(startOctave ~ startOctave+4), 2에서 시작해야 2~6옥타브가
-                      // 되면서 한가운데가 딱 4(Middle)가 됨. (예전엔 3으로만 낮춰서 3~7옥타브가
-                      // 됐는데, 그러면 가운데가 5가 돼버려서 Middle을 골랐는데도 안 가운데였음.)
                       if (v === 4 && settings.startOctave === 4) {
                         update({ rangeOctaves: v, startOctave: 2 });
                       } else {
@@ -206,6 +183,12 @@ export function SettingsModal({
                   <span className="modal-toggle-track" />
                 </label>
               </SettingRow>
+              {experimentalFeatures && (
+                <p className="modal-hint-experimental">
+                  {t(language, "settings.experimentalPrefix")}{" "}
+                  {EXPERIMENTAL_FEATURE_KEYS.map((key) => t(language, key)).join(", ")}
+                </p>
+              )}
               <p className="modal-hint">{t(language, "settings.hint")}</p>
             </div>
           </div>
