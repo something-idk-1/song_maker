@@ -13,7 +13,7 @@ export interface InstrumentSynthParams {
   };
 }
 
-export type InstrumentCategory = "오케스트라" | "국악" | "신스" | "8비트" | "기타";
+export type InstrumentCategory = "오케스트라" | "국악" | "신스" | "8비트" | "마인크래프트" | "기타";
 
 export interface InstrumentDef {
   id: string;
@@ -147,6 +147,63 @@ export const INSTRUMENTS: InstrumentDef[] = [
     synth: { oscillatorType: "triangle", envelope: { attack: 0.001, decay: 0.3, sustain: 0, release: 0.2 } },
     sampleBaseUrl: "/samples/melodies/etc/tungtungtung/",
   },
+  {
+    id: "inferno",
+    name: "인페르노",
+    category: "기타",
+    synth: { oscillatorType: "sawtooth", envelope: { attack: 0.01, decay: 0.4, sustain: 0.3, release: 0.6 } },
+    sampleBaseUrl: "/samples/melodies/etc/inferno/",
+  },
+  // --- 마인크래프트(노트블록) ---
+  {
+    id: "mc-banjo",
+    name: "밴조",
+    category: "마인크래프트",
+    synth: { oscillatorType: "triangle", envelope: { attack: 0.001, decay: 0.4, sustain: 0, release: 0.3 } },
+    sampleBaseUrl: "/samples/melodies/minecraft/banjo/",
+  },
+  {
+    id: "mc-bell",
+    name: "벨",
+    category: "마인크래프트",
+    synth: { oscillatorType: "sine", envelope: { attack: 0.001, decay: 0.6, sustain: 0, release: 1 } },
+    sampleBaseUrl: "/samples/melodies/minecraft/bell/",
+  },
+  {
+    id: "mc-cowbell",
+    name: "카우벨",
+    category: "마인크래프트",
+    synth: { oscillatorType: "square", envelope: { attack: 0.001, decay: 0.3, sustain: 0, release: 0.3 } },
+    sampleBaseUrl: "/samples/melodies/minecraft/cowBell/",
+  },
+  {
+    id: "mc-exp",
+    name: "경험치",
+    category: "마인크래프트",
+    synth: { oscillatorType: "sine", envelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.4 } },
+    sampleBaseUrl: "/samples/melodies/minecraft/exp/",
+  },
+  {
+    id: "mc-guitar",
+    name: "어쿠스틱 기타",
+    category: "마인크래프트",
+    synth: { oscillatorType: "triangle", envelope: { attack: 0.005, decay: 0.4, sustain: 0.1, release: 0.5 } },
+    sampleBaseUrl: "/samples/melodies/minecraft/guitar/",
+  },
+  {
+    id: "mc-harp",
+    name: "하프",
+    category: "마인크래프트",
+    synth: { oscillatorType: "sine", envelope: { attack: 0.001, decay: 0.5, sustain: 0, release: 0.6 } },
+    sampleBaseUrl: "/samples/melodies/minecraft/harp/",
+  },
+  {
+    id: "mc-xylobone",
+    name: "자일로폰",
+    category: "마인크래프트",
+    synth: { oscillatorType: "sine", envelope: { attack: 0.001, decay: 0.3, sustain: 0, release: 0.2 } },
+    sampleBaseUrl: "/samples/melodies/minecraft/xylobone/",
+  },
   // --- 8비트 ---
   {
     id: "square12",
@@ -179,8 +236,16 @@ export const INSTRUMENTS: InstrumentDef[] = [
   },
 ];
 
-// 악기 선택 팝업에서 2열 그리드로 배치할 때의 순서: 1행(오케스트라/신스), 2행(8비트/국악), 3행(기타=전체 너비).
-export const INSTRUMENT_CATEGORIES: InstrumentCategory[] = ["오케스트라", "신스", "8비트", "국악", "기타"];
+// 악기 선택 팝업 카테고리 순서 — 카테고리가 계속 늘어나서(마인크래프트 추가 등) 이제 2열 그리드
+// 대신 한 줄에 카테고리 하나씩 세로로 쌓는 레이아웃을 씀(InstrumentPicker.tsx 참고).
+export const INSTRUMENT_CATEGORIES: InstrumentCategory[] = [
+  "오케스트라",
+  "신스",
+  "8비트",
+  "국악",
+  "마인크래프트",
+  "기타",
+];
 
 export function getInstrumentById(id: string): InstrumentDef {
   return INSTRUMENTS.find((i) => i.id === id) ?? INSTRUMENTS[0];

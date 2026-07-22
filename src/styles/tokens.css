@@ -13,7 +13,13 @@
   --color-muted-soft: #b4b4bc;
   --color-hairline: #dadee6;
   --color-hairline-strong: #c7ccd6;
-  --color-grid-line: #edeef2;
+  /* 그리드 선 3단계 — 모눈종이처럼 기본 칸 선은 옅게, 마디/옥타브 구분선만 진하게 강조되게 함.
+     - grid-line: 기본 셀 하나하나 사이 선(1px) — 제일 옅음.
+     - grid-line-strong: 마디(beat-start, 1px)/옥타브(octave-start, 2px) 구분선 — 눈에 띄게 진함.
+     (hairline-strong은 그리드 전용이 아니라 다른 UI(호버 배경, 플래시 애니메이션 등)에도 같이
+     쓰이고 있어서 여기 값을 직접 바꾸면 그쪽까지 영향 가니까, 그리드 전용 토큰을 새로 분리함.) */
+  --color-grid-line: #e3e3e3;
+  --color-grid-line-strong: #a9afba;
   --color-flash: #ffffff;
   --color-on-primary: #ffffff;
   --color-accent-blue: #2f88f0;

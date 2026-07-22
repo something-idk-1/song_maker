@@ -6,21 +6,20 @@ import { PlaylistPlaceholder } from "./components/PlaylistPlaceholder";
 import { LoadingScreen } from "./components/LoadingScreen";
 import { InstrumentPicker } from "./components/InstrumentPicker";
 import { BeatKitPicker } from "./components/BeatKitPicker";
+import { ExportNameModal } from "./components/ExportNameModal";
 import {
   SettingsModal,
   type GridSettings,
   type LanguageCode,
   type ThemeName,
 } from "./components/SettingsModal";
-import {
-  buildScaleRows,
-  buildSimpleModeRows,
-  isDrumRowLabel,
-  keyToNoteName,
-  SIMPLE_MODE_DRUM_ROW_LABELS,
-} from "./lib/notes";
+import { buildScaleRows, isDrumRowLabel, keyToNoteName } from "./lib/notes";
 import { getNextSimpleModeInstrumentId } from "./lib/instruments";
-import { DEFAULT_BEAT_KIT_ID, getBeatKitById } from "./lib/beatKits";
+import {
+  DEFAULT_BEAT_KIT_ID,
+  getBeatKitById,
+  getNextSimpleModeBeatKitId,
+} from "./lib/beatKits";
 import { buildMidiBytes, midiNotesToCells, parseMidiBytes } from "./lib/midi";
 import { decodeProjectFromHash, encodeProjectToUrl } from "./lib/share";
 import { renderToAudioBuffer } from "./lib/renderAudio";
@@ -57,6 +56,8 @@ function App() {
   const [bpm, setBpm] = useState(96);
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(80); // 마스터 볼륨(0~100)
+  const [melodyVolume, setMelodyVolume] = useState(100); // 멜로디 채널만 따로(0~100, 100=보정 없음)
+  const [beatVolume, setBeatVolume] = useState(100); // 드럼 채널만 따로(0~100, 100=보정 없음)
 
   // 멜로디 행에 쓸 악기(피아노/마림바/스트링 등) — 간단/고급 모드 둘 다 공통으로 적용됨.
   // 간단 모드 기본값은 마림바(SIMPLE_MODE_INSTRUMENT_CYCLE 참고).
@@ -71,6 +72,10 @@ function App() {
   const [settings, setSettings] = useState<GridSettings>(DEFAULT_SETTINGS);
   const [draftSettings, setDraftSettings] = useState<GridSettings>(DEFAULT_SETTINGS);
   const [showSettings, setShowSettings] = useState(false);
+
+  // "MIDI 내보내기"/"WAV로 내보내기" 누르면 파일 이름을 정할 수 있는 자체 팝업이 뜸(브라우저 기본
+  // window.prompt 대신 씀). null이면 안 열림, "midi"/"wav"면 해당 종류의 이름 입력 팝업이 열림.
+  const [exportModalKind, setExportModalKind] = useState<"midi" | "wav" | null>(null);
 
   // "개별 설정" — 그리드 구조랑 무관해서 확인 버튼 없이 바로 적용됨. 테마/언어 시스템 자체는 아직
   // 없어서 지금은 값만 들고 있는 상태(스텁). 나중에 실제 테마 CSS/i18n 붙일 때 이 state를 그대로 씀.
@@ -102,8 +107,17 @@ function App() {
   // 멜로디 스케일 행 + 드럼 행을 합친 하나의 그리드로 관리함. 그래야 고급 모드에서 피아노/드럼
   // 토글을 눌러도 그 안에 찍힌 노트가 서로 안 섞이고, 재생할 때도 지금 안 보이는 쪽(예: 드럼 보는
   // 동안의 멜로디)까지 같이 소리 남 — FL스튜디오 채널랙처럼 "패턴은 다 같이 재생되고, 화면엔
-  // 하나씩만 보여줌". 드럼 행 자체는 모드에 따라 다름: 간단 모드는 항상 뮤직랩 기본(Kick/Snare)
-  // 고정, 고급 모드는 선택된 비트킷의 행을 그대로 씀(킷마다 행 개수가 다를 수 있음).
+  // 하나씩만 보여줌". 드럼 행은 두 모드 다 지금 선택된 비트킷(beatKitId)의 행을 그대로 씀 —
+  // 간단 모드는 뮤직랩 4개 중에서만 순환(handleCycleBeatKit), 고급 모드는 전체 킷 중에서 고름.
+  // 멜로디 행 개수 — 드럼 블록이 noteRows 안에서 어디부터 시작하는지(=드럼 행 안에서 몇 번째인지
+  // 계산할 때 기준점)를 알아야 뮤직랩 킷의 위/아래 모양(삼각형/원)을 라벨 텍스트가 아니라 위치로 정할 수 있음.
+  const melodyRowCount = useMemo(
+    () =>
+      buildScaleRows(settings.scale, settings.startNote, settings.startOctave, settings.rangeOctaves)
+        .length,
+    [settings],
+  );
+
   const noteRows = useMemo(() => {
     const melodyRows = buildScaleRows(
       settings.scale,
@@ -111,10 +125,9 @@ function App() {
       settings.startOctave,
       settings.rangeOctaves,
     );
-    const drumRows =
-      mode === "simple" ? SIMPLE_MODE_DRUM_ROW_LABELS : getBeatKitById(beatKitId).rowLabels;
+    const drumRows = getBeatKitById(beatKitId).rowLabels;
     return [...melodyRows, ...drumRows];
-  }, [settings, mode, beatKitId]);
+  }, [settings, beatKitId]);
 
   // 행이 멜로디인지 드럼인지로 자동 결정 — 더 이상 instrument 토글이 소리를 바꾸지 않음
   // (토글은 이제 "어떤 행을 화면에 보여줄지"만 담당함. 이후 "악기 선택"이 추가되면 그때 소리를 바꿈).
@@ -174,6 +187,8 @@ function App() {
     rowInstruments,
     instrumentId,
     masterVolumePercent: volume,
+    melodyVolumePercent: melodyVolume,
+    beatVolumePercent: beatVolume,
     beatKitId,
   });
 
@@ -218,11 +233,30 @@ function App() {
   }, []);
 
   // 헤더의 "재시작" — 지금 그려놓은 노트를 다 지우고 바로 처음부터 다시 시작함(설정/악기는 유지).
-  const handleRestart = useCallback(() => {
+  // 간단 모드는 이거 하나만 씀. 고급 모드는 재시작 버튼에 메뉴가 붙어서 아래 멜로디/비트 초기화도 고를 수 있음.
+  const handleRestartAll = useCallback(() => {
     setIsPlaying(false);
     setHistory([new Set()]);
     setHistoryIndex(0);
   }, []);
+
+  // 고급 모드 전용 — 멜로디 노트만 지우고 드럼 노트는 그대로 둠.
+  const handleRestartMelody = useCallback(() => {
+    setIsPlaying(false);
+    const kept = new Set(
+      [...activeCells].filter((key) => Number(key.split(":")[0]) >= melodyRowCount),
+    );
+    commitCells(kept);
+  }, [activeCells, melodyRowCount, commitCells]);
+
+  // 고급 모드 전용 — 드럼 노트만 지우고 멜로디 노트는 그대로 둠.
+  const handleRestartBeat = useCallback(() => {
+    setIsPlaying(false);
+    const kept = new Set(
+      [...activeCells].filter((key) => Number(key.split(":")[0]) < melodyRowCount),
+    );
+    commitCells(kept);
+  }, [activeCells, melodyRowCount, commitCells]);
 
   // 간단 모드용 악기 버튼 — 팝업을 여는 대신 정해진 순서(마림바→피아노→바이올린→플루트→신스→마림바...)로
   // 누를 때마다 다음 악기로 바로 넘어감.
@@ -230,25 +264,18 @@ function App() {
     setInstrumentId((current) => getNextSimpleModeInstrumentId(current));
   }, []);
 
-  // 고급 모드 비트킷 선택 — 킷마다 행 개수/이름이 달라서(뮤직랩 기본=2행, 8비트 칩튠=12행 등)
-  // 킷을 바꾸면 기존 드럼 행 인덱스가 더 이상 안 맞을 수 있음. 그래서 멜로디 행(항상 킷과 무관하게
-  // 고정된 개수)보다 뒤에 있는 드럼 쪽 노트는 킷 전환 시 정리하고, 멜로디 노트는 그대로 둠.
-  const handleSelectBeatKit = useCallback(
-    (id: string) => {
-      const melodyRowCount = buildScaleRows(
-        settings.scale,
-        settings.startNote,
-        settings.startOctave,
-        settings.rangeOctaves,
-      ).length;
-      const filtered = new Set(
-        [...activeCells].filter((key) => Number(key.split(":")[0]) < melodyRowCount),
-      );
-      setBeatKitId(id);
-      commitCells(filtered);
-    },
-    [settings, activeCells, commitCells],
-  );
+  // 고급 모드 비트킷 선택 — 이제 킷을 바꿔도 찍어둔 노트는 그대로 유지함(멜로디 노트도, 드럼 노트도).
+  // 킷마다 행 개수가 달라도(뮤직랩=2행, 8비트 칩튠=12행 등) 그냥 유지하고, 화면에 안 맞는 행은
+  // 새 킷 화면에서 단순히 안 보이거나 재생 대상에서 빠질 뿐 — 데이터 자체는 안 지움.
+  const handleSelectBeatKit = useCallback((id: string) => {
+    setBeatKitId(id);
+  }, []);
+
+  // 간단 모드용 비트 버튼 — 악기 버튼이랑 똑같은 방식으로, 뮤직랩 4개(일렉트로닉→블록→킷→콩가→...)를
+  // 누를 때마다 순서대로 돌아가며 씀. 뮤직랩 킷은 전부 2행이라 킷이 바뀌어도 찍어둔 드럼 노트는 그대로 씀.
+  const handleCycleBeatKit = useCallback(() => {
+    setBeatKitId((current) => getNextSimpleModeBeatKitId(current));
+  }, []);
 
   const handleOpenSettings = useCallback(() => {
     setDraftSettings(settings);
@@ -260,12 +287,15 @@ function App() {
     // 새 그리드에 옮길 수 있는 건 옮김.
     const newStepCount =
       draftSettings.bars * draftSettings.beatsPerBar * draftSettings.splitBeatsInto;
-    const newNoteRows = buildSimpleModeRows(
-      draftSettings.scale,
-      draftSettings.startNote,
-      draftSettings.startOctave,
-      draftSettings.rangeOctaves,
-    );
+    const newNoteRows = [
+      ...buildScaleRows(
+        draftSettings.scale,
+        draftSettings.startNote,
+        draftSettings.startOctave,
+        draftSettings.rangeOctaves,
+      ),
+      ...getBeatKitById(beatKitId).rowLabels,
+    ];
     const newRowIndexByNote = new Map(newNoteRows.map((name, index) => [name, index]));
 
     const migratedCells = new Set<string>();
@@ -284,20 +314,25 @@ function App() {
     setHistory([migratedCells]);
     setHistoryIndex(0);
     setShowSettings(false);
-  }, [draftSettings, activeCells, noteRows]);
+  }, [draftSettings, activeCells, noteRows, beatKitId]);
 
-  const handleExportMidi = useCallback(() => {
-    const bytes = buildMidiBytes({ noteRows, activeCells, bpm });
-    // TS 최신 lib.dom 타입에서 Uint8Array가 제네릭(ArrayBufferLike)이 돼서 Blob의 BlobPart랑
-    // 타입이 안 맞는 경우가 있음 — 평범한 ArrayBuffer 기반 Uint8Array로 복사해서 넘겨줌.
-    const blob = new Blob([new Uint8Array(bytes)], { type: "audio/midi" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "song-maker.mid";
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [noteRows, activeCells, bpm]);
+  // 실제 다운로드 로직 — 파일 이름(확장자 포함)을 인자로 받음. ExportNameModal에서 이름 정하고
+  // 확인 누르면 이게 호출됨(예전엔 "song-maker.mid"로 고정이었는데, 이제 팝업에서 이름을 정함).
+  const performExportMidi = useCallback(
+    (filename: string) => {
+      const bytes = buildMidiBytes({ noteRows, activeCells, bpm });
+      // TS 최신 lib.dom 타입에서 Uint8Array가 제네릭(ArrayBufferLike)이 돼서 Blob의 BlobPart랑
+      // 타입이 안 맞는 경우가 있음 — 평범한 ArrayBuffer 기반 Uint8Array로 복사해서 넘겨줌.
+      const blob = new Blob([new Uint8Array(bytes)], { type: "audio/midi" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+    [noteRows, activeCells, bpm],
+  );
 
   const handleImportMidi = useCallback(
     async (file: File) => {
@@ -318,22 +353,42 @@ function App() {
     [noteRows, stepCount, bpm],
   );
 
-  const handleExportWav = useCallback(async () => {
-    const buffer = await renderToAudioBuffer({
-      noteRows,
-      activeCells,
-      rowInstruments,
-      stepCount,
-      bpm,
-    });
-    const blob = audioBufferToWavBlob(buffer);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "song-maker.wav";
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [noteRows, activeCells, rowInstruments, stepCount, bpm]);
+  const performExportWav = useCallback(
+    async (filename: string) => {
+      const buffer = await renderToAudioBuffer({
+        noteRows,
+        activeCells,
+        rowInstruments,
+        stepCount,
+        bpm,
+        instrumentId,
+        beatKitId,
+        melodyVolumePercent: melodyVolume,
+        beatVolumePercent: beatVolume,
+      });
+      const blob = audioBufferToWavBlob(buffer);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+    [noteRows, activeCells, rowInstruments, stepCount, bpm, instrumentId, beatKitId, melodyVolume, beatVolume],
+  );
+
+  // 저장 메뉴에서 "MIDI 내보내기"/"WAV로 내보내기" 누르면 바로 다운로드하지 않고 이름 입력 팝업부터 염.
+  const handleExportMidi = useCallback(() => setExportModalKind("midi"), []);
+  const handleExportWav = useCallback(() => setExportModalKind("wav"), []);
+
+  const handleConfirmExportName = useCallback(
+    (name: string) => {
+      if (exportModalKind === "midi") performExportMidi(`${name}.mid`);
+      else if (exportModalKind === "wav") performExportWav(`${name}.wav`);
+      setExportModalKind(null);
+    },
+    [exportModalKind, performExportMidi, performExportWav],
+  );
 
   const handleShareLink = useCallback(() => {
     const payload: SharedPayload = {
@@ -357,6 +412,9 @@ function App() {
   }, [settings, mode, instrument, bpm, activeCells]);
 
   // 페이지 열릴 때 URL 해시에 공유된 프로젝트 데이터가 있으면 복원함.
+  // 복원하고 나면 해시를 바로 지움 — 안 지우면 그 뒤에 노트를 바꾸거나 재시작을 눌러도
+  // (예: HMR로 페이지가 다시 마운트되는 등) 주소창에 남아있는 옛날 링크 데이터로 계속
+  // 되돌아가는 버그가 있었음. 한 번 불러왔으면 그 링크의 역할은 끝난 거라 지워도 안전함.
   useEffect(() => {
     const restored = decodeProjectFromHash<SharedPayload>();
     if (!restored) return;
@@ -367,6 +425,9 @@ function App() {
     setBpm(restored.bpm);
     setHistory([new Set(restored.cells)]);
     setHistoryIndex(0);
+    // 여기서 `history`는 위의 React state(노트 히스토리)라서 이름이 겹침 — 브라우저
+    // History API는 꼭 window.history로 명시해서 씀.
+    window.history.replaceState(null, "", location.pathname + location.search);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -378,7 +439,9 @@ function App() {
         onModeChange={handleModeChange}
         view={view}
         onViewChange={setView}
-        onRestart={handleRestart}
+        onRestartAll={handleRestartAll}
+        onRestartMelody={handleRestartMelody}
+        onRestartBeat={handleRestartBeat}
       />
 
       <main className="main-content">
@@ -396,7 +459,9 @@ function App() {
             onPreviewNote={previewNote}
             currentStep={currentStep}
             isPlaying={isPlaying}
-            useShapedDrumIcons={mode === "simple" || beatKitId === "musiclab_default"}
+            useShapedDrumIcons={getBeatKitById(beatKitId).category === "뮤직랩"}
+            drumStartIndex={melodyRowCount}
+            showLabels={mode === "advanced"}
           />
         ) : (
           <PlaylistPlaceholder />
@@ -428,8 +493,13 @@ function App() {
         experimentalFeatures={experimentalFeatures}
         volume={volume}
         onVolumeChange={setVolume}
+        melodyVolume={melodyVolume}
+        onMelodyVolumeChange={setMelodyVolume}
+        beatVolume={beatVolume}
+        onBeatVolumeChange={setBeatVolume}
         beatKitId={beatKitId}
         onOpenBeatKitPicker={() => setShowBeatKitPicker(true)}
+        onCycleBeatKit={handleCycleBeatKit}
       />
 
       {showInstrumentPicker && (
@@ -445,6 +515,16 @@ function App() {
           selectedId={beatKitId}
           onSelect={handleSelectBeatKit}
           onClose={() => setShowBeatKitPicker(false)}
+        />
+      )}
+
+      {exportModalKind && (
+        <ExportNameModal
+          title={exportModalKind === "midi" ? "MIDI 내보내기" : "WAV로 내보내기"}
+          extension={exportModalKind === "midi" ? ".mid" : ".wav"}
+          defaultName="song-maker"
+          onConfirm={handleConfirmExportName}
+          onClose={() => setExportModalKind(null)}
         />
       )}
 

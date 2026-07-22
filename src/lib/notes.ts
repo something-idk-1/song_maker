@@ -116,26 +116,6 @@ export function isCNote(noteName: string): boolean {
 // 없어서 안전함.
 const ALL_DRUM_ROW_LABELS = new Set(BEAT_KITS.flatMap((kit) => kit.rowLabels));
 
-// 간단 모드는 항상 뮤직랩 기본 비트킷(Kick 위, Snare 아래)으로 고정됨 — 킷을 바꿀 수 없음.
-// 고급 모드에서는 선택된 비트킷의 rowLabels를 씀.
-export const SIMPLE_MODE_DRUM_ROW_LABELS = ["Kick", "Snare"] as const;
-
 export function isDrumRowLabel(label: string): boolean {
   return ALL_DRUM_ROW_LABELS.has(label);
-}
-
-/**
- * 간단 모드용 그리드 행 = 멜로디 스케일 행 + 드럼 행(지금은 Kick/Snare 고정).
- * 하나의 그리드에서 멜로디랑 드럼을 동시에 찍을 수 있게 함.
- */
-export function buildSimpleModeRows(
-  scale: ScaleName,
-  startNote: string,
-  startOctave: number,
-  rangeOctaves: number,
-): string[] {
-  return [
-    ...buildScaleRows(scale, startNote, startOctave, rangeOctaves),
-    ...SIMPLE_MODE_DRUM_ROW_LABELS,
-  ];
 }

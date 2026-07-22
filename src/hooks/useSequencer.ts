@@ -2,44 +2,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import * as Tone from "tone";
 import { DRUM_TRIGGER_NOTE } from "../lib/midi";
 import { getInstrumentById, getInstrumentSampleUrls } from "../lib/instruments";
-import { DEFAULT_BEAT_KIT_ID, getBeatKitById, type BeatKitDef, type DrumSynthSpec } from "../lib/beatKits";
-
-// 신스 비트 킷의 행별 신스 인스턴스 — 킥/스네어/하이햇이 서로 다른 발음 방식이라 타입이 다름.
-type DrumRowSynth = Tone.MembraneSynth | Tone.NoiseSynth | Tone.MetalSynth;
-
-function createDrumRowSynth(spec: DrumSynthSpec): DrumRowSynth {
-  if (spec.kind === "noise") {
-    // 스네어 — 노이즈 버스트 + 짧은 감쇠로 "착" 하는 느낌.
-    return new Tone.NoiseSynth({
-      noise: { type: "white" },
-      envelope: { attack: 0.001, decay: 0.15, sustain: 0 },
-    }).toDestination();
-  }
-  if (spec.kind === "metal") {
-    // 하이햇 — 금속성 배음 여러 개를 짧게 감쇠시켜서 "치익" 하는 느낌.
-    return new Tone.MetalSynth({
-      envelope: { attack: 0.001, decay: 0.1, release: 0.01 },
-      harmonicity: 5.1,
-      modulationIndex: 32,
-      resonance: 4000,
-      octaves: 1.5,
-    }).toDestination();
-  }
-  // membrane — 킥. 막(振動膜) 진동을 흉내내는 신스, 낮은 고정 피치로 침.
-  return new Tone.MembraneSynth().toDestination();
-}
-
-function triggerDrumRowSynth(synth: DrumRowSynth, spec: DrumSynthSpec, time?: number) {
-  if (synth instanceof Tone.NoiseSynth) {
-    synth.triggerAttackRelease("16n", time);
-  } else if (synth instanceof Tone.MetalSynth) {
-    // MetalSynth는 note(주파수)를 받긴 하지만 피치보다는 배음 세팅(harmonicity 등)이 음색을
-    // 결정해서 값 자체는 크게 중요하지 않음 — 그냥 고정 주파수로 침.
-    synth.triggerAttackRelease(200, "32n", time);
-  } else {
-    synth.triggerAttackRelease(spec.pitch ?? "C2", "16n", time);
-  }
-}
+import {
+  DEFAULT_BEAT_KIT_ID,
+  getBeatKitById,
+  createDrumRowSynth,
+  triggerDrumRowSynth,
+  type BeatKitDef,
+  type DrumRowSynth,
+} from "../lib/beatKits";
 
 // Sampler든 PolySynth든 우리가 쓰는 메서드(triggerAttackRelease)는 동일해서 하나의 타입으로 다룸.
 type MelodyVoice = Tone.PolySynth | Tone.Sampler;
@@ -59,8 +29,18 @@ interface UseSequencerArgs {
   instrumentId: string;
   // 전체 마스터 볼륨(0~100, 100=원본 그대로). Tone.Destination.volume(dB)으로 변환해서 적용함.
   masterVolumePercent: number;
+  // 멜로디 채널만 따로 조절하는 볼륨(0~100). 악기 자체 볼륨 보정(instruments.ts의 volumePercent)이랑
+  // 곱해져서(=dB 합산) 적용됨 — 마스터랑은 별개로 멜로디만 줄이거나 키울 때 씀.
+  melodyVolumePercent: number;
+  // 드럼 채널만 따로 조절하는 볼륨(0~100). 마스터/멜로디랑은 별개.
+  beatVolumePercent: number;
   // 드럼 행에 쓸 비트킷 id — lib/beatKits.ts 참고. 지금은 고를 UI가 없어서 항상 기본값(뮤직랩 기본)만 옴.
   beatKitId?: string;
+}
+
+// 0이면 완전 무음(-Infinity dB), 아니면 20*log10(비율)로 dB 변환.
+function percentToDb(percent: number): number {
+  return percent <= 0 ? -Infinity : 20 * Math.log10(percent / 100);
 }
 
 // 셀 키는 "행인덱스:스텝인덱스" 형태로 저장함 (예: "3:7").
@@ -89,6 +69,8 @@ export function useSequencer({
   rowInstruments,
   instrumentId,
   masterVolumePercent,
+  melodyVolumePercent,
+  beatVolumePercent,
   beatKitId = DEFAULT_BEAT_KIT_ID,
 }: UseSequencerArgs) {
   const [currentStep, setCurrentStep] = useState(0);
@@ -156,6 +138,18 @@ export function useSequencer({
     };
   }, [beatKitId]);
 
+  // 드럼 채널 볼륨 — 샘플 Players, 행별 신스, 안전망 MembraneSynth 전부에 동일하게 적용함.
+  // 위 beatKitId effect 다음에 둬야 함 — 킷이 바뀌어서 Players/신스가 새로 만들어진 직후(기본 0dB
+  // 상태)에도 곧바로 지금 볼륨이 반영되게. 순서가 바뀌면 킷 전환 직후 잠깐 원래 볼륨으로 들림.
+  useEffect(() => {
+    const db = percentToDb(beatVolumePercent);
+    if (drumPlayersRef.current) drumPlayersRef.current.volume.value = db;
+    drumRowSynthsRef.current.forEach((synth) => {
+      synth.volume.value = db;
+    });
+    if (drumSynthRef.current) drumSynthRef.current.volume.value = db;
+  }, [beatVolumePercent, beatKitId]);
+
   useEffect(() => {
     Tone.Transport.bpm.value = bpm;
   }, [bpm]);
@@ -163,8 +157,7 @@ export function useSequencer({
   // 마스터 볼륨 — 개별 악기 볼륨(instruments.ts의 volumePercent)이랑은 별개로 전체 출력에 적용됨.
   // 0%면 완전 무음(-Infinity dB)으로 처리함.
   useEffect(() => {
-    Tone.Destination.volume.value =
-      masterVolumePercent <= 0 ? -Infinity : 20 * Math.log10(masterVolumePercent / 100);
+    Tone.Destination.volume.value = percentToDb(masterVolumePercent);
   }, [masterVolumePercent]);
 
   // 악기 선택이 바뀌면 멜로디 보이스를 다시 만듦.
@@ -215,6 +208,21 @@ export function useSequencer({
       previous?.dispose();
     };
   }, [instrumentId]);
+
+  // 멜로디 채널 볼륨 — 슬라이더를 움직일 때마다 "지금 붙어있는" 멜로디 보이스에 바로 반영함.
+  // 위 instrumentId effect 다음에 둬야 함 — 악기를 바꿔서 보이스가 새로 만들어진 직후에도 곧바로
+  // 지금 볼륨이 반영되게. 악기 자체 보정(volumePercent)이랑은 dB 합산으로 같이 적용됨.
+  // 볼륨 effect를 악기 생성 effect랑 합치지 않은 이유: 합치면 볼륨 슬라이더만 움직여도 매번
+  // Sampler가 다시 로드돼서 소리가 끊기고 네트워크 요청도 다시 나감 — 볼륨은 기존 보이스의
+  // .volume만 바꾸면 충분함.
+  useEffect(() => {
+    const voice = pianoSynthRef.current;
+    if (!voice) return;
+    const def = getInstrumentById(instrumentId);
+    const instrumentDb = def.volumePercent !== undefined ? 20 * Math.log10(def.volumePercent / 100) : 0;
+    const channelDb = percentToDb(melodyVolumePercent);
+    voice.volume.value = channelDb === -Infinity ? -Infinity : instrumentDb + channelDb;
+  }, [instrumentId, melodyVolumePercent]);
 
   const triggerRow = (rowIndex: number, noteName: string, time?: number) => {
     const kind = rowInstrumentsRef.current[rowIndex] ?? "piano";

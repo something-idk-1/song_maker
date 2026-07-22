@@ -29,7 +29,10 @@ interface SettingsModalProps {
 
 const BARS_RECOMMENDED_MAX = 16;
 
-const OCTAVE_OPTIONS = [3, 4, 5, 6];
+// 2는 목록에 직접 넣어서 고를 수 있게 하진 않지만, Range 4옥타브 + Middle 조합일 때
+// 자동으로 2로 내려가는 경우가 있어서(Middle을 진짜 가운데로 두려고) 드롭다운에 그 값이
+// 선택된 채로 정상 표시되려면 옵션 목록에도 있어야 함.
+const OCTAVE_OPTIONS = [2, 3, 4, 5, 6];
 type Tab = "piano-roll" | "personal";
 
 // Chrome Music Lab 의 Song Maker 설정 화면 레이아웃 참고 — Length(좌측), Scale/Start on/Range(우측), 가운데 확인 버튼.
@@ -146,10 +149,13 @@ export function SettingsModal({
                     min={1}
                     max={4}
                     onChange={(v) => {
-                      // Range를 4옥타브로 올리면 시작 옥타브를 한 칸 낮춰서(4 -> 3) 3옥타브부터
-                      // 시작하게 함 — 4에서 그대로 4옥타브를 쌓으면 음역대가 너무 높아지기 때문.
+                      // Range를 4옥타브로 올릴 때 시작 옥타브가 "Middle"(4)이면, 정말로 4를
+                      // 가운데로 두고 위아래로 펼쳐지게 함 — 4옥타브 범위는 시작 옥타브부터 위로
+                      // 4칸을 쌓으니까(startOctave ~ startOctave+4), 2에서 시작해야 2~6옥타브가
+                      // 되면서 한가운데가 딱 4(Middle)가 됨. (예전엔 3으로만 낮춰서 3~7옥타브가
+                      // 됐는데, 그러면 가운데가 5가 돼버려서 Middle을 골랐는데도 안 가운데였음.)
                       if (v === 4 && settings.startOctave === 4) {
-                        update({ rangeOctaves: v, startOctave: 3 });
+                        update({ rangeOctaves: v, startOctave: 2 });
                       } else {
                         update({ rangeOctaves: v });
                       }

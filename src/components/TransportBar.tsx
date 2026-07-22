@@ -30,9 +30,16 @@ interface TransportBarProps {
   experimentalFeatures: boolean;
   volume: number;
   onVolumeChange: (volume: number) => void;
+  // 멜로디/드럼 채널만 따로 조절하는 볼륨(0~100) — 마스터 볼륨(volume)이랑은 별개로 적용됨.
+  melodyVolume: number;
+  onMelodyVolumeChange: (volume: number) => void;
+  beatVolume: number;
+  onBeatVolumeChange: (volume: number) => void;
   // 고급 모드 전용 — 드럼 화면에서 비트킷 선택 팝업 열기(피아노 쪽 악기 선택 팝업이랑 같은 패턴).
   beatKitId: string;
   onOpenBeatKitPicker: () => void;
+  // 간단 모드 전용 — 비트 버튼 누를 때마다 뮤직랩 킷 순서(일렉트로닉→블록→킷→콩가→...)로 넘어감.
+  onCycleBeatKit: () => void;
 }
 
 // docs/DESIGN.md 의 transport-bar 스펙을 3열 그리드로 구성: 좌측(재생+악기토글+스텝표시) - 중앙(템포) - 우측(undo/redo/프로젝트 메뉴)
@@ -61,14 +68,29 @@ export function TransportBar({
   experimentalFeatures,
   volume,
   onVolumeChange,
+  melodyVolume,
+  onMelodyVolumeChange,
+  beatVolume,
+  onBeatVolumeChange,
   beatKitId,
   onOpenBeatKitPicker,
+  onCycleBeatKit,
 }: TransportBarProps) {
   const selectedInstrument = getInstrumentById(instrumentId);
   const selectedBeatKit = getBeatKitById(beatKitId);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  // 처음엔 전체(마스터) 볼륨 슬라이더 하나만 보이다가, 화살표 버튼을 누르면 왼쪽으로 늘어나면서
+  // 멜로디/비트 슬라이더 2개로 펼쳐짐. 다시 접으면(오른쪽 화살표) 멜로디/비트의 평균으로
+  // 전체 볼륨을 맞추고 원래 하나짜리 모습으로 되돌아감.
+  const [volumeExpanded, setVolumeExpanded] = useState(false);
+  const handleToggleVolumeExpand = () => {
+    if (volumeExpanded) {
+      onVolumeChange(Math.round((melodyVolume + beatVolume) / 2));
+    }
+    setVolumeExpanded((v) => !v);
+  };
 
   // 메뉴 바깥 클릭하면 닫히게.
   useEffect(() => {
@@ -125,6 +147,13 @@ export function TransportBar({
           </button>
         )}
 
+        {/* 비트도 똑같은 방식 — 뮤직랩 4개(일렉트로닉→블록→킷→콩가→...)를 순서대로 돌아가며 씀 */}
+        {mode === "simple" && (
+          <button className="instrument-select-button" onClick={onCycleBeatKit}>
+            {selectedBeatKit.name}
+          </button>
+        )}
+
         <span className="transport-step-readout">
           STEP {String(currentStep + 1).padStart(2, "0")}/{stepCount}
         </span>
@@ -155,16 +184,57 @@ export function TransportBar({
       </div>
 
       <div className="transport-right">
-        <div className="volume-group" title="마스터 볼륨">
-          <span className="volume-label">VOL</span>
-          <input
-            className="volume-slider"
-            type="range"
-            min={0}
-            max={100}
-            value={volume}
-            onChange={(e) => onVolumeChange(Number(e.target.value))}
-          />
+        {/* 볼륨 전체를 캡슐(알약) 모양 하나로 묶음 — 화살표가 맨 왼쪽에 붙어있고, 눌러서 펼치면
+            같은 캡슐 안에서 오른쪽으로 늘어나며 멜로디/비트 슬라이더가 나타남. */}
+        <div className="volume-capsule">
+          <button
+            className="volume-expand-toggle"
+            onClick={handleToggleVolumeExpand}
+            title={volumeExpanded ? "평균으로 합치기" : "멜로디/비트 따로 조절"}
+          >
+            {volumeExpanded ? "›" : "‹"}
+          </button>
+
+          <div className="volume-group" title="마스터 볼륨">
+            <span className="volume-label">VOL</span>
+            {/* 접혀있을 때만 보여줌 — 펼쳐지면 아래 멜로디/비트 슬라이더가 대신 보임 */}
+            <div className={`volume-collapse ${volumeExpanded ? "volume-collapse-hidden" : ""}`}>
+              <input
+                className="volume-slider"
+                type="range"
+                min={0}
+                max={100}
+                value={volume}
+                onChange={(e) => onVolumeChange(Number(e.target.value))}
+              />
+            </div>
+          </div>
+
+          <div className={`volume-expand-panel ${volumeExpanded ? "volume-expand-panel-open" : ""}`}>
+            <div className="volume-group" title="멜로디 볼륨">
+              <span className="volume-label">멜로디</span>
+              <input
+                className="volume-slider"
+                type="range"
+                min={0}
+                max={100}
+                value={melodyVolume}
+                onChange={(e) => onMelodyVolumeChange(Number(e.target.value))}
+              />
+            </div>
+
+            <div className="volume-group" title="비트 볼륨">
+              <span className="volume-label">비트</span>
+              <input
+                className="volume-slider"
+                type="range"
+                min={0}
+                max={100}
+                value={beatVolume}
+                onChange={(e) => onBeatVolumeChange(Number(e.target.value))}
+              />
+            </div>
+          </div>
         </div>
 
         <button className="button-icon-circular" onClick={onUndo} disabled={!canUndo} title="Undo">

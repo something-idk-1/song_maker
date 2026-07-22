@@ -26,9 +26,14 @@ interface PianoRollGridProps {
   onPreviewNote: (rowIndex: number, noteName: string) => void;
   currentStep: number;
   isPlaying: boolean;
-  // 뮤직랩 기본 킷(Kick/Snare)일 때만 킥=삼각형/스네어=원처럼 종류별 모양을 보여주고,
+  // 뮤직랩 계열 킷(일렉트로닉/블록/킷/콩가)일 때만 위행=삼각형/아래행=원처럼 종류별 모양을 보여주고,
   // 그 외 비트킷(신스 비트, 8비트 칩튠, 국악 등)은 전부 네모 아이콘으로 통일함.
   useShapedDrumIcons?: boolean;
+  // noteRows 안에서 드럼 행이 시작하는 인덱스(= 멜로디 행 개수). 뮤직랩 모양(삼각형/원)을
+  // 라벨 텍스트가 아니라 "드럼 블록 안에서 몇 번째 행이냐"로 정하기 위해 씀.
+  drumStartIndex?: number;
+  // 간단 모드는 레이블(음이름/Kick/Snare 텍스트) 열 자체를 안 보여줌. 고급 모드는 그대로 보여줌.
+  showLabels?: boolean;
 }
 
 // 키보드로 건반 미리듣기할 때 App에서 이걸 호출해서 해당 음이름의 레이블을 흰색으로 깜빡이게 함.
@@ -70,6 +75,8 @@ export const PianoRollGrid = forwardRef<PianoRollGridHandle, PianoRollGridProps>
       currentStep,
       isPlaying,
       useShapedDrumIcons = true,
+      drumStartIndex = 0,
+      showLabels = true,
     },
     ref,
   ) {
@@ -86,7 +93,7 @@ export const PianoRollGrid = forwardRef<PianoRollGridHandle, PianoRollGridProps>
 
   const cellWidth = Math.round(BASE_CELL_WIDTH * zoom);
   const rowHeight = Math.round(BASE_ROW_HEIGHT * zoom);
-  const labelWidth = Math.round(BASE_LABEL_WIDTH * zoom);
+  const labelWidth = showLabels ? Math.round(BASE_LABEL_WIDTH * zoom) : 0;
 
   // 레이블 눌렀을 때(키보드/클릭 공용)이 행을 잠깐 어둡게 반짝이게 함.
   const flashLabelAt = (rowIndex: number) => {
@@ -135,6 +142,27 @@ export const PianoRollGrid = forwardRef<PianoRollGridHandle, PianoRollGridProps>
     noteRows.forEach((note, i) => {
       if (!isRowVisible(i)) return;
       if (prevVisibleIndex !== -1 && parseOctave(note) !== parseOctave(noteRows[prevVisibleIndex])) {
+        result[i] = true;
+      }
+      prevVisibleIndex = i;
+    });
+    return result;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [noteRows, visibleRows]);
+
+  // 멜로디 구간이 끝나고 드럼 구간이 시작하는 지점에 구분선을 그음(간단 모드에서 멜로디+드럼이
+  // 한 화면에 같이 보일 때만 의미가 있음 — 고급 모드에서 드럼만 따로 보는 화면일 땐 "바로 이전
+  // 보이는 행"이 드럼이 아닐 일이 없어서 자동으로 안 그려짐. 옥타브 경계선이랑 똑같은 패턴).
+  const drumSectionStarts = useMemo(() => {
+    const result = noteRows.map(() => false);
+    let prevVisibleIndex = -1;
+    noteRows.forEach((note, i) => {
+      if (!isRowVisible(i)) return;
+      if (
+        prevVisibleIndex !== -1 &&
+        isDrumRowLabel(note) &&
+        !isDrumRowLabel(noteRows[prevVisibleIndex])
+      ) {
         result[i] = true;
       }
       prevVisibleIndex = i;
@@ -295,6 +323,7 @@ export const PianoRollGrid = forwardRef<PianoRollGridHandle, PianoRollGridProps>
 
   return (
     <div className="piano-roll" ref={containerRef} style={gridSizeVars}>
+      {showLabels && (
       <div className="piano-roll-labels">
         {noteRows.map((note, rowIndex) => {
           if (!isRowVisible(rowIndex)) return null;
@@ -307,8 +336,8 @@ export const PianoRollGrid = forwardRef<PianoRollGridHandle, PianoRollGridProps>
                 else labelRefs.current.delete(rowIndex);
               }}
               className={`piano-roll-row-label ${octaveStarts[rowIndex] ? "octave-start" : ""} ${
-                stickyBottom !== null ? "sticky-bottom-row" : ""
-              }`}
+                drumSectionStarts[rowIndex] ? "drum-section-start" : ""
+              } ${stickyBottom !== null ? "sticky-bottom-row" : ""}`}
               style={stickyBottom !== null ? { bottom: stickyBottom } : undefined}
               onMouseDown={(e) => {
                 if (e.button !== 0) return;
@@ -326,16 +355,19 @@ export const PianoRollGrid = forwardRef<PianoRollGridHandle, PianoRollGridProps>
           );
         })}
       </div>
+      )}
 
       <GridBody
         noteRows={noteRows}
         stepCount={stepCount}
         stepsPerBar={stepsPerBar}
         octaveStarts={octaveStarts}
+        drumSectionStarts={drumSectionStarts}
         drumStickyOffsets={drumStickyOffsets}
         visibleRows={visibleRows}
         activeCells={cells}
         useShapedDrumIcons={useShapedDrumIcons}
+        drumStartIndex={drumStartIndex}
         onCellMouseDown={handleCellMouseDown}
         onCellMouseEnter={handleCellMouseEnter}
         registerCellRef={(key, el) => {
@@ -353,10 +385,12 @@ interface GridBodyProps {
   stepCount: number;
   stepsPerBar: number;
   octaveStarts: boolean[];
+  drumSectionStarts: boolean[];
   drumStickyOffsets: (number | null)[];
   visibleRows?: boolean[];
   activeCells: Set<string>;
   useShapedDrumIcons: boolean;
+  drumStartIndex: number;
   onCellMouseDown: (rowIndex: number, stepIndex: number) => void;
   onCellMouseEnter: (rowIndex: number, stepIndex: number) => void;
   registerCellRef: (key: string, el: HTMLButtonElement | null) => void;
@@ -369,10 +403,12 @@ const GridBody = memo(function GridBody({
   stepCount,
   stepsPerBar,
   octaveStarts,
+  drumSectionStarts,
   drumStickyOffsets,
   visibleRows,
   activeCells,
   useShapedDrumIcons,
+  drumStartIndex,
   onCellMouseDown,
   onCellMouseEnter,
   registerCellRef,
@@ -386,15 +422,22 @@ const GridBody = memo(function GridBody({
         const isFlatRow = note.includes("#");
         const stickyBottom = drumStickyOffsets[rowIndex];
         const isDrum = isDrumRowLabel(note);
-        // 뮤직랩 기본 킷일 때만 킥=삼각형/스네어=원처럼 종류별 모양을 씀. 그 외 비트킷은
-        // drum-${type} 수정자 클래스를 안 붙여서 기본 네모 모양(.drum-cell.active::after 기본값)만 나옴.
-        const drumType = isDrum && useShapedDrumIcons ? note.toLowerCase() : null;
+        // 뮤직랩 계열 킷일 때만 위행=삼각형/아래행=원 모양을 씀 — 라벨 텍스트(Kick/Snare/block1..)가
+        // 킷마다 달라서, 텍스트 대신 "드럼 블록 안에서 몇 번째 행이냐"로 모양을 정함.
+        // 뮤직랩 킷은 전부 2행이라 0번째=위=삼각형(snare 모양 재사용), 1번째=아래=원(kick 모양 재사용).
+        // 그 외 비트킷은 drum-${type} 수정자 클래스를 안 붙여서 기본 네모 모양만 나옴.
+        const drumType =
+          isDrum && useShapedDrumIcons
+            ? (rowIndex - drumStartIndex) % 2 === 0
+              ? "snare"
+              : "kick"
+            : null;
         return (
           <div
             key={note + rowIndex}
             className={`piano-roll-row ${octaveStarts[rowIndex] ? "octave-start" : ""} ${
-              stickyBottom !== null ? "sticky-bottom-row" : ""
-            }`}
+              drumSectionStarts[rowIndex] ? "drum-section-start" : ""
+            } ${stickyBottom !== null ? "sticky-bottom-row" : ""}`}
             style={stickyBottom !== null ? { bottom: stickyBottom } : undefined}
           >
             {steps.map((stepIndex) => {
