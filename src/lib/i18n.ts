@@ -35,6 +35,10 @@ const STRINGS = {
   "settings.monochromeDefault": { en: "Monochrome (default)", ko: "모노크롬 (기본)" },
   "settings.language": { en: "Language", ko: "언어 설정" },
   "settings.experimentalFeatures": { en: "Experimental Features", ko: "실험 기능" },
+  "settings.combinedAdvancedView": {
+    en: "Combine melody + drum view (Advanced mode)",
+    ko: "멜로디+드럼 화면 합치기 (고급 모드 전용)",
+  },
   "settings.hint": {
     en: "More themes and languages are coming soon. You can resize the grid with Ctrl+Scroll (shrinking only works at the 4-octave range).",
     ko: "테마/언어는 곧 더 추가될 예정이에요. 그리드 크기는 Ctrl+휠로 바꿀 수 있어요(4옥타브일 때만 축소 가능).",

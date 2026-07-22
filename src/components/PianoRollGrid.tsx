@@ -27,6 +27,7 @@ interface PianoRollGridProps {
   drumStartIndex?: number;
   showLabels?: boolean;
   startStep?: number;
+  pinDrumsToBottom?: boolean;
 }
 
 export interface PianoRollGridHandle {
@@ -61,6 +62,7 @@ export const PianoRollGrid = forwardRef<PianoRollGridHandle, PianoRollGridProps>
       drumStartIndex = 0,
       showLabels = true,
       startStep = 0,
+      pinDrumsToBottom = true,
     },
     ref,
   ) {
@@ -146,6 +148,7 @@ export const PianoRollGrid = forwardRef<PianoRollGridHandle, PianoRollGridProps>
 
   const drumStickyOffsets = useMemo(() => {
     const offsets: (number | null)[] = noteRows.map(() => null);
+    if (!pinDrumsToBottom) return offsets;
     const visibleIndexes = noteRows.map((_, i) => i).filter(isRowVisible);
     const hasVisibleDrum = visibleIndexes.some((i) => isDrumRowLabel(noteRows[i]));
     const hasVisibleMelody = visibleIndexes.some((i) => !isDrumRowLabel(noteRows[i]));
@@ -160,9 +163,10 @@ export const PianoRollGrid = forwardRef<PianoRollGridHandle, PianoRollGridProps>
     }
     return offsets;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [noteRows, visibleRows, rowHeight]);
+  }, [noteRows, visibleRows, rowHeight, pinDrumsToBottom]);
 
   const drumBlockHeight = useMemo(() => {
+    if (!pinDrumsToBottom) return 0;
     const visibleIndexes = noteRows.map((_, i) => i).filter(isRowVisible);
     const hasVisibleDrum = visibleIndexes.some((i) => isDrumRowLabel(noteRows[i]));
     const hasVisibleMelody = visibleIndexes.some((i) => !isDrumRowLabel(noteRows[i]));
@@ -170,7 +174,7 @@ export const PianoRollGrid = forwardRef<PianoRollGridHandle, PianoRollGridProps>
     const drumCount = visibleIndexes.filter((i) => isDrumRowLabel(noteRows[i])).length;
     return drumCount * rowHeight;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [noteRows, visibleRows, rowHeight]);
+  }, [noteRows, visibleRows, rowHeight, pinDrumsToBottom]);
 
   const workingCellsRef = useRef<Set<string> | null>(null);
   const dragModeRef = useRef<"add" | "remove">("add");
@@ -330,7 +334,11 @@ export const PianoRollGrid = forwardRef<PianoRollGridHandle, PianoRollGridProps>
                 {note}
               </div>
               {drumSectionEnds[rowIndex] && (
-                <div className="piano-roll-divider" style={{ bottom: drumBlockHeight }} />
+                pinDrumsToBottom ? (
+                  <div className="piano-roll-divider" style={{ bottom: drumBlockHeight }} />
+                ) : (
+                  <div className="piano-roll-divider-static" />
+                )
               )}
             </Fragment>
           );
@@ -346,6 +354,7 @@ export const PianoRollGrid = forwardRef<PianoRollGridHandle, PianoRollGridProps>
         drumSectionEnds={drumSectionEnds}
         drumStickyOffsets={drumStickyOffsets}
         drumBlockHeight={drumBlockHeight}
+        pinDrumsToBottom={pinDrumsToBottom}
         visibleRows={visibleRows}
         activeCells={cells}
         useShapedDrumIcons={useShapedDrumIcons}
@@ -371,6 +380,7 @@ interface GridBodyProps {
   drumSectionEnds: boolean[];
   drumStickyOffsets: (number | null)[];
   drumBlockHeight: number;
+  pinDrumsToBottom: boolean;
   visibleRows?: boolean[];
   activeCells: Set<string>;
   useShapedDrumIcons: boolean;
@@ -389,6 +399,7 @@ const GridBody = memo(function GridBody({
   drumSectionEnds,
   drumStickyOffsets,
   drumBlockHeight,
+  pinDrumsToBottom,
   visibleRows,
   activeCells,
   useShapedDrumIcons,
@@ -454,7 +465,11 @@ const GridBody = memo(function GridBody({
               })}
             </div>
             {drumSectionEnds[rowIndex] && (
-              <div className="piano-roll-divider" style={{ bottom: drumBlockHeight }} />
+              pinDrumsToBottom ? (
+                <div className="piano-roll-divider" style={{ bottom: drumBlockHeight }} />
+              ) : (
+                <div className="piano-roll-divider-static" />
+              )
             )}
           </Fragment>
         );

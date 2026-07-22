@@ -26,6 +26,8 @@ interface SettingsModalProps {
   onLanguageChange: (language: LanguageCode) => void;
   experimentalFeatures: boolean;
   onExperimentalFeaturesChange: (enabled: boolean) => void;
+  combinedAdvancedView: boolean;
+  onCombinedAdvancedViewChange: (enabled: boolean) => void;
 }
 
 export const BARS_DEFAULT_MAX = 16;
@@ -45,6 +47,8 @@ export function SettingsModal({
   onLanguageChange,
   experimentalFeatures,
   onExperimentalFeaturesChange,
+  combinedAdvancedView,
+  onCombinedAdvancedViewChange,
 }: SettingsModalProps) {
   const [tab, setTab] = useState<Tab>("piano-roll");
   const update = (patch: Partial<GridSettings>) => onChange({ ...settings, ...patch });
@@ -189,6 +193,16 @@ export function SettingsModal({
                   {EXPERIMENTAL_FEATURE_KEYS.map((key) => t(language, key)).join(", ")}
                 </p>
               )}
+              <SettingRow label={t(language, "settings.combinedAdvancedView")}>
+                <label className="modal-toggle">
+                  <input
+                    type="checkbox"
+                    checked={combinedAdvancedView}
+                    onChange={(e) => onCombinedAdvancedViewChange(e.target.checked)}
+                  />
+                  <span className="modal-toggle-track" />
+                </label>
+              </SettingRow>
               <p className="modal-hint">{t(language, "settings.hint")}</p>
             </div>
           </div>

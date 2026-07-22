@@ -37,6 +37,7 @@ interface TransportBarProps {
   beatKitId: string;
   onOpenBeatKitPicker: () => void;
   onCycleBeatKit: () => void;
+  combinedAdvancedView: boolean;
   language: Language;
 }
 
@@ -75,6 +76,7 @@ export function TransportBar({
   beatKitId,
   onOpenBeatKitPicker,
   onCycleBeatKit,
+  combinedAdvancedView,
   language,
 }: TransportBarProps) {
   const selectedInstrument = getInstrumentById(instrumentId);
@@ -110,26 +112,37 @@ export function TransportBar({
         </button>
 
         {mode === "advanced" && (
-          <div className="segmented-toggle">
-            <button
-              className={instrument === "piano" ? "active" : ""}
-              onClick={() => {
-                if (instrument === "piano") onOpenInstrumentPicker();
-                else onInstrumentChange("piano");
-              }}
-            >
-              {getInstrumentDisplayName(selectedInstrument, language)}
-            </button>
-            <button
-              className={instrument === "drum" ? "active" : ""}
-              onClick={() => {
-                if (instrument === "drum") onOpenBeatKitPicker();
-                else onInstrumentChange("drum");
-              }}
-            >
-              {getBeatKitDisplayName(selectedBeatKit, language)}
-            </button>
-          </div>
+          combinedAdvancedView ? (
+            <div className="segmented-toggle">
+              <button className="active" onClick={onOpenInstrumentPicker}>
+                {getInstrumentDisplayName(selectedInstrument, language)}
+              </button>
+              <button className="active" onClick={onOpenBeatKitPicker}>
+                {getBeatKitDisplayName(selectedBeatKit, language)}
+              </button>
+            </div>
+          ) : (
+            <div className="segmented-toggle">
+              <button
+                className={instrument === "piano" ? "active" : ""}
+                onClick={() => {
+                  if (instrument === "piano") onOpenInstrumentPicker();
+                  else onInstrumentChange("piano");
+                }}
+              >
+                {getInstrumentDisplayName(selectedInstrument, language)}
+              </button>
+              <button
+                className={instrument === "drum" ? "active" : ""}
+                onClick={() => {
+                  if (instrument === "drum") onOpenBeatKitPicker();
+                  else onInstrumentChange("drum");
+                }}
+              >
+                {getBeatKitDisplayName(selectedBeatKit, language)}
+              </button>
+            </div>
+          )
         )}
 
         {mode === "simple" && (

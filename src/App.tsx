@@ -95,6 +95,8 @@ function App() {
 
   const [experimentalFeatures, setExperimentalFeatures] = useState(false);
 
+  const [combinedAdvancedView, setCombinedAdvancedView] = useState(false);
+
   const handleExperimentalFeaturesChange = useCallback((enabled: boolean) => {
     setExperimentalFeatures(enabled);
     if (!enabled) {
@@ -134,11 +136,11 @@ function App() {
   );
 
   const visibleRows = useMemo<boolean[]>(() => {
-    if (mode === "simple") return noteRows.map(() => true);
+    if (mode === "simple" || combinedAdvancedView) return noteRows.map(() => true);
     return noteRows.map((label) =>
       instrument === "drum" ? isDrumRowLabel(label) : !isDrumRowLabel(label),
     );
-  }, [mode, instrument, noteRows]);
+  }, [mode, instrument, noteRows, combinedAdvancedView]);
 
   const [history, setHistory] = useState<Set<string>[]>([new Set()]);
   const [historyIndex, setHistoryIndex] = useState(0);
@@ -479,6 +481,7 @@ function App() {
             drumStartIndex={melodyRowCount}
             showLabels={mode === "advanced"}
             startStep={startStep}
+            pinDrumsToBottom={mode === "simple"}
           />
         ) : (
           <PlaylistPlaceholder language={language} />
@@ -517,6 +520,7 @@ function App() {
         beatKitId={beatKitId}
         onOpenBeatKitPicker={() => setShowBeatKitPicker(true)}
         onCycleBeatKit={handleCycleBeatKit}
+        combinedAdvancedView={combinedAdvancedView}
         language={language}
       />
 
@@ -561,6 +565,8 @@ function App() {
           onLanguageChange={setLanguage}
           experimentalFeatures={experimentalFeatures}
           onExperimentalFeaturesChange={handleExperimentalFeaturesChange}
+          combinedAdvancedView={combinedAdvancedView}
+          onCombinedAdvancedViewChange={setCombinedAdvancedView}
         />
       )}
     </div>

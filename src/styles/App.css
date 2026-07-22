@@ -440,6 +440,15 @@ body,
   pointer-events: none;
 }
 
+/* 고급 모드 "멜로디+드럼 화면 합치기" 켰을 때 쓰는 버전 — 드럼 행이 고정 안 되고 그냥 이어붙으니까
+   구분선도 sticky 없이 평범하게 그 자리에 그려짐(스크롤하면 같이 지나감). */
+.piano-roll-divider-static {
+  height: 2px;
+  width: 100%;
+  background-color: var(--color-grid-line-strong);
+  pointer-events: none;
+}
+
 @keyframes flash-fade-active {
   from {
     background-color: var(--color-flash);

@@ -80,6 +80,56 @@ function buildNumberedKit(
   return { id, name, category, rowLabels, sampleUrls };
 }
 
+// 실제 파일명이 제각각(공백/이모지 포함)인 킷용 — 화면에 보여줄 라벨과 실제 디스크 파일명을
+// 따로 매핑해줌. 파일명은 encodeURIComponent로 인코딩해서 URL에 넣음 — 공백이나 이모지가
+// 그대로 들어가면 브라우저/서버에 따라 fetch가 깨질 수 있어서(예전에 '#' 문자로 한 번 겪음) 안전하게 처리.
+function buildNamedKit(
+  id: string,
+  name: string,
+  category: BeatKitCategory,
+  baseUrl: string,
+  files: { label: string; file: string }[],
+): BeatKitDef {
+  const rowLabels = files.map((f) => f.label);
+  const sampleUrls: Record<string, string> = {};
+  files.forEach(({ label, file }) => {
+    sampleUrls[label] = `${baseUrl}${encodeURIComponent(file)}`;
+  });
+  return { id, name, category, rowLabels, sampleUrls };
+}
+
+// "something" 킷 — 밈/효과음 원샷 모음. 파일명이 공백 있는 것도 있고 이모지 파일명도 있어서
+// buildNamedKit으로 라벨<->실제 파일명을 따로 매핑함.
+const SOMETHING_FILES: { label: string; file: string }[] = [
+  { label: "FAH", file: "FAH.wav" },
+  { label: "GETOUT", file: "GETOUT.wav" },
+  { label: "Baby Explode", file: "baby explode.wav" },
+  { label: "Cat Laugh", file: "catlaugh.wav" },
+  { label: "Chomp", file: "chomp.wav" },
+  { label: "Clock", file: "clock.wav" },
+  { label: "Discord", file: "discord.wav" },
+  { label: "Dwuh Bluetooth", file: "dwuh bluetooth.wav" },
+  { label: "Fart", file: "fart.wav" },
+  { label: "France", file: "france.wav" },
+  { label: "Hey", file: "hey.wav" },
+  { label: "Inib", file: "inib.wav" },
+  { label: "KakaoTalk", file: "kakaotalk.wav" },
+  { label: "Level Up", file: "levelup.wav" },
+  { label: "Metal Pipe", file: "metalpipe.wav" },
+  { label: "Missing", file: "missing.wav" },
+  { label: "Oof", file: "oof.wav" },
+  { label: "Op", file: "op.wav" },
+  { label: "Parry", file: "parry.wav" },
+  { label: "Sans", file: "sans.wav" },
+  { label: "Sound", file: "sound.wav" },
+  { label: "Staggered", file: "staggered.wav" },
+  { label: "Teemo", file: "teemo.wav" },
+  { label: "Tungtungtung", file: "tungtungtung.wav" },
+  { label: "Win XP", file: "winxp.wav" },
+  { label: "Yippee", file: "yippee.wav" },
+  { label: "🗿", file: "🗿.wav" },
+];
+
 export const BEAT_KITS: BeatKitDef[] = [
   // --- Music Lab (the 4 that cycle in order in simple mode) ---
   {
@@ -153,6 +203,7 @@ export const BEAT_KITS: BeatKitDef[] = [
       "Kkwaenggwari 3": "/samples/beat/gugak/kkwaenggwari3.wav",
     },
   },
+  buildNamedKit("something", "Something", "Other", "/samples/beat/something/", SOMETHING_FILES),
 ];
 
 export const BEAT_KIT_CATEGORIES: BeatKitCategory[] = ["Music Lab", "Other"];
@@ -176,6 +227,7 @@ const BEAT_KIT_NAME_KO: Record<string, string> = {
   breakcore: "브레이크코어",
   jazz: "재즈",
   gugak: "국악",
+  something: "밈 사운드",
 };
 
 const BEAT_KIT_CATEGORY_LABEL_KO: Record<BeatKitCategory, string> = {
