@@ -25,6 +25,7 @@ import { decodeProjectFromHash, encodeProjectToUrl } from "./lib/share";
 import { renderToAudioBuffer } from "./lib/renderAudio";
 import { audioBufferToWavBlob } from "./lib/wav";
 import { cellKey, useSequencer, type Instrument } from "./hooks/useSequencer";
+import { t } from "./lib/i18n";
 
 const MAX_HISTORY = 4; // undo는 3번까지만 가능하게 — "현재 + 최근 3개"
 
@@ -80,7 +81,11 @@ function App() {
   // "개별 설정" — 그리드 구조랑 무관해서 확인 버튼 없이 바로 적용됨. 테마/언어 시스템 자체는 아직
   // 없어서 지금은 값만 들고 있는 상태(스텁). 나중에 실제 테마 CSS/i18n 붙일 때 이 state를 그대로 씀.
   const [theme, setTheme] = useState<ThemeName>("monochrome");
-  const [language, setLanguage] = useState<LanguageCode>("ko");
+  const [language, setLanguage] = useState<LanguageCode>("en");
+  // FL스튜디오처럼 방향키(←/→, Ctrl 없이)로 옮기는 "재생 시작 위치" 마커 — 스페이스바/재생 버튼을
+  // 누르면 항상 처음(0)이 아니라 여기서부터 재생됨. useSequencer에 startStep으로 넘겨줌.
+  const [startStep, setStartStep] = useState(0);
+
   // 그리드 셀 크기 배율 — 1 = 기존 기본 크기(44x32). 기본값을 1.2배로 키워서 시작함.
   // 축소(1보다 작게)는 4옥타브(행이 많아서 화면에 안 들어갈 때)일 때만 허용함 —
   // 그보다 좁은 범위에서 축소하면 그리드가 괜히 작아 보여서 이상함.
@@ -99,10 +104,16 @@ function App() {
       setGridZoom(1);
     }
   }, [settings.rangeOctaves, gridZoom]);
+
   // 실험 기능 토글 — 켜면 아직 다듬는 중인 기능들이 (베타) 딱지 달고 노출됨. 지금은 MIDI 불러오기부터.
   const [experimentalFeatures, setExperimentalFeatures] = useState(false);
 
   const stepCount = settings.bars * settings.beatsPerBar * settings.splitBeatsInto;
+
+  // 마디 수 등 설정이 바뀌어서 그리드가 짧아지면 재생 시작 마커가 범위 밖으로 나갈 수 있어서 clamp함.
+  useEffect(() => {
+    setStartStep((v) => Math.min(v, stepCount - 1));
+  }, [stepCount]);
 
   // 멜로디 스케일 행 + 드럼 행을 합친 하나의 그리드로 관리함. 그래야 고급 모드에서 피아노/드럼
   // 토글을 눌러도 그 안에 찍힌 노트가 서로 안 섞이고, 재생할 때도 지금 안 보이는 쪽(예: 드럼 보는
@@ -172,6 +183,37 @@ function App() {
     setHistoryIndex((i) => Math.max(0, i - 1));
   }, []);
 
+  // FL스튜디오의 Ctrl+↑/↓ 처럼 지금 찍힌 노트를 전부 한 옥타브 위/아래로 옮김. 드럼 행은 옥타브
+  // 개념이 없어서 그대로 둠. 옮긴 자리가 지금 그리드 범위(Range) 밖이면(예: 맨 위 옥타브에서 더
+  // 올리는 경우) 그 노트는 잘림 — undo(Ctrl+Z)로 되돌릴 수 있음.
+  const handleTransposeOctave = useCallback(
+    (direction: 1 | -1) => {
+      const rowIndexByNote = new Map(noteRows.map((name, index) => [name, index]));
+      const shifted = new Set<string>();
+      activeCells.forEach((key) => {
+        const [rowStr, stepStr] = key.split(":");
+        const rowIndex = Number(rowStr);
+        const noteName = noteRows[rowIndex];
+        if (!noteName || isDrumRowLabel(noteName)) {
+          shifted.add(key);
+          return;
+        }
+        const match = noteName.match(/^(.*?)(-?\d+)$/);
+        if (!match) {
+          shifted.add(key);
+          return;
+        }
+        const [, pitch, octaveStr] = match;
+        const newNoteName = `${pitch}${Number(octaveStr) + direction}`;
+        const newRowIndex = rowIndexByNote.get(newNoteName);
+        if (newRowIndex === undefined) return; // 범위 밖으로 나가면 그냥 잘림
+        shifted.add(cellKey(newRowIndex, Number(stepStr)));
+      });
+      commitCells(shifted);
+    },
+    [noteRows, activeCells, commitCells],
+  );
+
   const handleRedo = useCallback(() => {
     setHistoryIndex((i) => Math.min(history.length - 1, i + 1));
   }, [history.length]);
@@ -190,6 +232,7 @@ function App() {
     melodyVolumePercent: melodyVolume,
     beatVolumePercent: beatVolume,
     beatKitId,
+    startStep,
   });
 
   // 스페이스바로 재생/정지, Ctrl/Cmd+Z로 되돌리기(Shift 누르면 다시하기),
@@ -215,6 +258,23 @@ function App() {
         return;
       }
 
+      // FL스튜디오처럼 Ctrl/Cmd+↑/↓ = 찍어둔 노트 전체를 한 옥타브 위/아래로 옮김.
+      if ((e.ctrlKey || e.metaKey) && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+        e.preventDefault();
+        handleTransposeOctave(e.key === "ArrowUp" ? 1 : -1);
+        return;
+      }
+
+      // Ctrl 없이 ←/→ = 재생 시작 위치(스텝) 마커를 옮김. 스페이스바로 재생하면 여기서부터 시작함.
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+        e.preventDefault();
+        setStartStep((v) => {
+          const next = v + (e.key === "ArrowRight" ? 1 : -1);
+          return Math.max(0, Math.min(stepCount - 1, next));
+        });
+        return;
+      }
+
       // 조합키(Ctrl/Cmd/Alt) 눌려있으면 건반 미리듣기는 무시 (단축키랑 겹치지 않게).
       if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
       const noteName = keyToNoteName(e.key, settings.startOctave);
@@ -225,7 +285,7 @@ function App() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleUndo, handleRedo, previewPianoNote, settings.startOctave]);
+  }, [handleUndo, handleRedo, previewPianoNote, settings.startOctave, handleTransposeOctave, stepCount]);
 
   const handleModeChange = useCallback((next: AppMode) => {
     setMode(next);
@@ -345,12 +405,10 @@ function App() {
       setHistoryIndex(0);
       if (migrated.size === 0) {
         // eslint-disable-next-line no-alert
-        alert(
-          "가져온 MIDI에서 지금 그리드(마디 수/음역대)에 맞는 노트를 못 찾았어요. Length나 Range 설정을 넉넉히 늘리고 다시 시도해보세요.",
-        );
+        alert(t(language, "app.midiImportFailed"));
       }
     },
-    [noteRows, stepCount, bpm],
+    [noteRows, stepCount, bpm, language],
   );
 
   const performExportWav = useCallback(
@@ -403,13 +461,13 @@ function App() {
       .writeText(url)
       .then(() => {
         // eslint-disable-next-line no-alert
-        alert("공유 링크가 클립보드에 복사됐어요!");
+        alert(t(language, "app.shareCopied"));
       })
       .catch(() => {
         // eslint-disable-next-line no-alert
-        prompt("아래 링크를 복사하세요:", url);
+        prompt(t(language, "app.shareCopyPrompt"), url);
       });
-  }, [settings, mode, instrument, bpm, activeCells]);
+  }, [settings, mode, instrument, bpm, activeCells, language]);
 
   // 페이지 열릴 때 URL 해시에 공유된 프로젝트 데이터가 있으면 복원함.
   // 복원하고 나면 해시를 바로 지움 — 안 지우면 그 뒤에 노트를 바꾸거나 재시작을 눌러도
@@ -433,7 +491,9 @@ function App() {
 
   return (
     <div className="app">
-      {showLoading && <LoadingScreen onFinish={() => setShowLoading(false)} minDurationMs={2000} />}
+      {showLoading && (
+        <LoadingScreen onFinish={() => setShowLoading(false)} minDurationMs={2000} language={language} />
+      )}
       <Header
         mode={mode}
         onModeChange={handleModeChange}
@@ -442,6 +502,7 @@ function App() {
         onRestartAll={handleRestartAll}
         onRestartMelody={handleRestartMelody}
         onRestartBeat={handleRestartBeat}
+        language={language}
       />
 
       <main className="main-content">
@@ -459,12 +520,13 @@ function App() {
             onPreviewNote={previewNote}
             currentStep={currentStep}
             isPlaying={isPlaying}
-            useShapedDrumIcons={getBeatKitById(beatKitId).category === "뮤직랩"}
+            useShapedDrumIcons={getBeatKitById(beatKitId).category === "Music Lab"}
             drumStartIndex={melodyRowCount}
             showLabels={mode === "advanced"}
+            startStep={startStep}
           />
         ) : (
-          <PlaylistPlaceholder />
+          <PlaylistPlaceholder language={language} />
         )}
       </main>
 
@@ -500,6 +562,7 @@ function App() {
         beatKitId={beatKitId}
         onOpenBeatKitPicker={() => setShowBeatKitPicker(true)}
         onCycleBeatKit={handleCycleBeatKit}
+        language={language}
       />
 
       {showInstrumentPicker && (
@@ -507,6 +570,7 @@ function App() {
           selectedId={instrumentId}
           onSelect={setInstrumentId}
           onClose={() => setShowInstrumentPicker(false)}
+          language={language}
         />
       )}
 
@@ -515,16 +579,18 @@ function App() {
           selectedId={beatKitId}
           onSelect={handleSelectBeatKit}
           onClose={() => setShowBeatKitPicker(false)}
+          language={language}
         />
       )}
 
       {exportModalKind && (
         <ExportNameModal
-          title={exportModalKind === "midi" ? "MIDI 내보내기" : "WAV로 내보내기"}
+          title={t(language, exportModalKind === "midi" ? "export.titleMidi" : "export.titleWav")}
           extension={exportModalKind === "midi" ? ".mid" : ".wav"}
           defaultName="song-maker"
           onConfirm={handleConfirmExportName}
           onClose={() => setExportModalKind(null)}
+          language={language}
         />
       )}
 

@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { NOTE_NAMES, SCALE_NAMES, type ScaleName } from "../lib/scales";
+import { t, type Language } from "../lib/i18n";
 
 export interface GridSettings {
   bars: number;
@@ -12,7 +13,9 @@ export interface GridSettings {
 }
 
 export type ThemeName = "monochrome";
-export type LanguageCode = "ko" | "en";
+// lib/i18n.ts의 Language를 그대로 재수출함 — 이 파일이 "언어 설정" UI의 원래 자리라서 이름은
+// 유지하되, 실제 타입/문구는 i18n.ts 한 군데에서만 관리함.
+export type LanguageCode = Language;
 
 interface SettingsModalProps {
   settings: GridSettings;
@@ -62,13 +65,13 @@ export function SettingsModal({
             className={tab === "piano-roll" ? "modal-tab active" : "modal-tab"}
             onClick={() => setTab("piano-roll")}
           >
-            피아노 롤 설정
+            {t(language, "settings.pianoRollTab")}
           </button>
           <button
             className={tab === "personal" ? "modal-tab active" : "modal-tab"}
             onClick={() => setTab("personal")}
           >
-            개별 설정
+            {t(language, "settings.personalTab")}
           </button>
         </div>
 
@@ -82,7 +85,7 @@ export function SettingsModal({
                     {settings.bars > BARS_RECOMMENDED_MAX && (
                       <span
                         className="modal-field-warning"
-                        title={`${BARS_RECOMMENDED_MAX}마디까지가 권장 크기예요. 그 이상은 그리드가 무거워질 수 있어요.`}
+                        title={`${BARS_RECOMMENDED_MAX} bars is the recommended max. Going higher may slow the grid down.`}
                       >
                         !
                       </span>
@@ -94,6 +97,7 @@ export function SettingsModal({
                     min={1}
                     max={25}
                     onChange={(v) => update({ bars: v })}
+                    language={language}
                   />
                 </div>
                 <div className="modal-field">
@@ -160,38 +164,39 @@ export function SettingsModal({
                         update({ rangeOctaves: v });
                       }
                     }}
+                    language={language}
                   />
                 </div>
               </div>
             </div>
 
-            <button className="modal-confirm" onClick={onConfirm} aria-label="설정 적용">
+            <button className="modal-confirm" onClick={onConfirm} aria-label={t(language, "settings.applySettings")}>
               ✓
             </button>
           </>
         ) : (
           <div className="modal-grid modal-grid-single">
             <div className="modal-column">
-              <SettingRow label="테마 설정">
+              <SettingRow label={t(language, "settings.theme")}>
                 <select
                   className="modal-select"
                   value={theme}
                   onChange={(e) => onThemeChange(e.target.value as ThemeName)}
                 >
-                  <option value="monochrome">모노크롬 (기본)</option>
+                  <option value="monochrome">{t(language, "settings.monochromeDefault")}</option>
                 </select>
               </SettingRow>
-              <SettingRow label="언어 설정">
+              <SettingRow label={t(language, "settings.language")}>
                 <select
                   className="modal-select"
                   value={language}
                   onChange={(e) => onLanguageChange(e.target.value as LanguageCode)}
                 >
-                  <option value="ko">한국어</option>
                   <option value="en">English</option>
+                  <option value="ko">한국어</option>
                 </select>
               </SettingRow>
-              <SettingRow label="실험 기능">
+              <SettingRow label={t(language, "settings.experimentalFeatures")}>
                 <label className="modal-toggle">
                   <input
                     type="checkbox"
@@ -201,10 +206,7 @@ export function SettingsModal({
                   <span className="modal-toggle-track" />
                 </label>
               </SettingRow>
-              <p className="modal-hint">
-                테마/언어는 곧 더 추가될 예정이에요. 그리드 크기는 Ctrl+휠로 바꿀 수 있어요(4옥타브일
-                때만 축소 가능).
-              </p>
+              <p className="modal-hint">{t(language, "settings.hint")}</p>
             </div>
           </div>
         )}
@@ -229,6 +231,7 @@ function Stepper({
   max,
   step = 1,
   onChange,
+  language,
 }: {
   value: number;
   unit?: string;
@@ -236,6 +239,7 @@ function Stepper({
   max: number;
   step?: number;
   onChange: (v: number) => void;
+  language: Language;
 }) {
   return (
     <div className="stepper">
@@ -246,14 +250,14 @@ function Stepper({
       <button
         className="stepper-button"
         onClick={() => onChange(Math.max(min, value - step))}
-        aria-label="감소"
+        aria-label={t(language, "settings.decrease")}
       >
         −
       </button>
       <button
         className="stepper-button"
         onClick={() => onChange(Math.min(max, value + step))}
-        aria-label="증가"
+        aria-label={t(language, "settings.increase")}
       >
         +
       </button>

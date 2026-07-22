@@ -106,6 +106,16 @@ body,
   }
 }
 
+/* 로딩할 때마다 랜덤으로 하나씩 뜨는 팁 문구 (LoadingScreen.tsx의 LOADING_TIPS 참고 — 실제
+   문구는 아직 자리표시자, 나중에 진짜 리스트로 교체할 예정). */
+.loading-tip {
+  font-size: 13px;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  max-width: 360px;
+  text-align: center;
+}
+
 /* ---------- Header ---------- */
 /* 3열 그리드(좌/가운데/우)로 바꿔서 nav-pill-group(플레이리스트/피아노 롤)이 헤더 폭 전체 기준으로
    진짜 가운데 오게 함 — flex space-between이었을 땐 자식 개수에 따라 위치가 흔들렸었음. */
@@ -433,6 +443,17 @@ body,
   background-size: 1px 100%, 1px 100%;
 }
 
+/* 방향키(←/→)로 옮기는 "재생 시작 위치" 마커 — 스페이스바로 재생하면 여기서부터 시작함.
+   마디 구분선(beat-start)이랑 같은 왼쪽-배경-이미지 방식을 쓰되, 색만 진한 검정(color-ink)으로
+   다르게 줘서 구분되게 함. beat-start보다 뒤에 선언해서 두 클래스가 같이 붙어도 이 색이 이김. */
+.grid-cell.start-marker {
+  background-image: linear-gradient(var(--color-ink), var(--color-ink)),
+    linear-gradient(var(--color-grid-line), var(--color-grid-line));
+  background-repeat: no-repeat;
+  background-position: left top, right top;
+  background-size: 2px 100%, 1px 100%;
+}
+
 /* 간단 모드 드럼 행(Kick/Snare/HiHat) 하단 고정 — 스크롤해도 트랜스포트 바 바로 위에 계속 보이게 함.
    label/grid 양쪽 다 같은 방식으로 sticky bottom을 걸고, 위에 있는 멜로디 행들 위로 그려지게 z-index를 줌. */
 .piano-roll-row-label.sticky-bottom-row,
@@ -462,14 +483,19 @@ body,
 /* 간단 모드에서 멜로디 구간이 끝나고 드럼 구간이 시작하는 지점 구분선 — 옥타브 선이랑 같은
    굵기/색(2px, grid-line-strong)을 써서 "여기서부터 성격이 다른 행"이라는 걸 비슷한 무게로 알려줌.
    고급 모드에서 드럼만 보는 화면일 땐 이 클래스 자체가 안 붙어서(PianoRollGrid.tsx의
-   drumSectionStarts 계산 참고) 자동으로 안 보임. */
-.piano-roll-row.drum-section-start::before {
-  height: 2px;
-  background-color: var(--color-grid-line-strong);
+   drumSectionStarts 계산 참고) 자동으로 안 보임.
+   ::before absolute 오버레이 방식은 이 행이 항상 sticky-bottom-row(position: sticky + z-index)도
+   같이 걸리는 행이라서 스택 컨텍스트에 가려 안 보이는 문제가 있었음 — inset box-shadow는 그
+   행 자기 배경/보더 페인팅 단계에서 그려져서 sticky 여부와 무관하게 항상 보임(레이블의 우측
+   구분선도 같은 방식으로 이미 잘 그려지고 있었음). */
+.piano-roll-row.drum-section-start {
+  box-shadow: inset 0 2px 0 0 var(--color-grid-line-strong);
 }
 
 .piano-roll-row-label.drum-section-start {
-  border-top: 2px solid var(--color-grid-line-strong);
+  box-shadow:
+    inset -1px 0 0 var(--color-grid-line),
+    inset 0 2px 0 0 var(--color-grid-line-strong);
 }
 
 /* 재생 중 현재 스텝 컬럼이 잠깐 깜빡이는 효과. 노트 찍을 때는 transition이 없어서 즉시 바뀌지만,

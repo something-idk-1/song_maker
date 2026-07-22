@@ -13,7 +13,7 @@ export interface InstrumentSynthParams {
   };
 }
 
-export type InstrumentCategory = "오케스트라" | "국악" | "신스" | "8비트" | "마인크래프트" | "기타";
+export type InstrumentCategory = "Orchestra" | "Gugak" | "Synth" | "8-bit" | "Minecraft" | "Other";
 
 export interface InstrumentDef {
   id: string;
@@ -38,177 +38,177 @@ export const SAMPLE_ANCHOR_NOTES = ["C", "D#", "F#", "A"] as const;
 export const SAMPLE_OCTAVES = [4, 5, 6] as const;
 
 export const INSTRUMENTS: InstrumentDef[] = [
-  // --- 오케스트라 ---
+  // --- Orchestra ---
   {
     id: "piano",
-    name: "피아노",
-    category: "오케스트라",
+    name: "Piano",
+    category: "Orchestra",
     synth: { oscillatorType: "triangle", envelope: { attack: 0.005, decay: 0.3, sustain: 0.2, release: 0.8 } },
     sampleBaseUrl: "/samples/melodies/orchestra/piano/",
   },
   {
     id: "musicbox",
-    name: "뮤직박스",
-    category: "오케스트라",
+    name: "Music Box",
+    category: "Orchestra",
     synth: { oscillatorType: "sine", envelope: { attack: 0.001, decay: 0.4, sustain: 0.05, release: 1.2 } },
     sampleBaseUrl: "/samples/melodies/orchestra/musicBox/",
   },
   {
     id: "marimba",
-    name: "마림바",
-    category: "오케스트라",
+    name: "Marimba",
+    category: "Orchestra",
     synth: { oscillatorType: "sine", envelope: { attack: 0.001, decay: 0.5, sustain: 0, release: 0.3 } },
     sampleBaseUrl: "/samples/melodies/orchestra/marimba/",
   },
   {
     id: "xylophone",
-    name: "실로폰",
-    category: "오케스트라",
+    name: "Xylophone",
+    category: "Orchestra",
     synth: { oscillatorType: "sine", envelope: { attack: 0.001, decay: 0.4, sustain: 0, release: 0.2 } },
     sampleBaseUrl: "/samples/melodies/orchestra/xylophone/",
   },
   {
     id: "strings",
-    name: "바이올린",
-    category: "오케스트라",
+    name: "Violin",
+    category: "Orchestra",
     synth: { oscillatorType: "sawtooth", envelope: { attack: 0.2, decay: 0.2, sustain: 0.6, release: 1 } },
     sampleBaseUrl: "/samples/melodies/orchestra/violin/",
   },
   {
     id: "woodwind",
-    name: "플루트",
-    category: "오케스트라",
+    name: "Flute",
+    category: "Orchestra",
     synth: { oscillatorType: "square", envelope: { attack: 0.08, decay: 0.15, sustain: 0.5, release: 0.4 } },
     sampleBaseUrl: "/samples/melodies/orchestra/flute/",
   },
-  // --- 국악(Gugak) ---
+  // --- Gugak (Korean traditional) ---
   {
     id: "gayageum",
-    name: "가야금",
-    category: "국악",
+    name: "Gayageum",
+    category: "Gugak",
     synth: { oscillatorType: "triangle", envelope: { attack: 0.001, decay: 0.6, sustain: 0, release: 0.4 } },
     sampleBaseUrl: "/samples/melodies/gugak/gayageum/",
   },
   {
     id: "danso",
-    name: "단소",
-    category: "국악",
+    name: "Danso",
+    category: "Gugak",
     synth: { oscillatorType: "sine", envelope: { attack: 0.1, decay: 0.1, sustain: 0.6, release: 0.5 } },
     sampleBaseUrl: "/samples/melodies/gugak/danso/",
   },
   {
     id: "haegeum",
-    name: "해금",
-    category: "국악",
+    name: "Haegeum",
+    category: "Gugak",
     synth: { oscillatorType: "sawtooth", envelope: { attack: 0.15, decay: 0.2, sustain: 0.5, release: 0.6 } },
     sampleBaseUrl: "/samples/melodies/gugak/hageum/",
   },
-  // --- 신스 ---
+  // --- Synth ---
   {
     // 지금 마림바가 샘플 없을 때 대체로 쓰던 것과 같은 짧고 통통 튀는 sine 신스.
     // 마림바 실제 샘플이 들어오면 marimba 항목은 sampleBaseUrl로 교체되고, 이 소리는
     // 독립된 신스 악기로 계속 남음.
     id: "synth-pluck",
-    name: "신스 플럭",
-    category: "신스",
+    name: "Synth Pluck",
+    category: "Synth",
     synth: { oscillatorType: "sine", envelope: { attack: 0.001, decay: 0.5, sustain: 0, release: 0.3 } },
   },
   {
     id: "synth-strings",
-    name: "신스 스트링",
-    category: "신스",
+    name: "Synth Strings",
+    category: "Synth",
     synth: { oscillatorType: "sawtooth", envelope: { attack: 0.05, decay: 0.2, sustain: 0.7, release: 0.6 } },
   },
   {
     id: "synth-lead",
-    name: "신스 리드",
-    category: "신스",
+    name: "Synth Lead",
+    category: "Synth",
     synth: { oscillatorType: "square", envelope: { attack: 0.01, decay: 0.1, sustain: 0.4, release: 0.2 } },
   },
-  // --- 기타(etc) ---
+  // --- Other ---
   {
     id: "glass",
-    name: "글라스",
-    category: "기타",
+    name: "Glass",
+    category: "Other",
     synth: { oscillatorType: "sine", envelope: { attack: 0.01, decay: 0.6, sustain: 0.1, release: 1.5 } },
     sampleBaseUrl: "/samples/melodies/etc/glass/",
   },
   {
     id: "darkslateblue",
     name: "darkslateblue",
-    category: "기타",
+    category: "Other",
     synth: { oscillatorType: "sine", envelope: { attack: 0.01, decay: 0.4, sustain: 0.2, release: 0.8 } },
     sampleBaseUrl: "/samples/melodies/etc/darkslateblue/",
   },
   {
     id: "tungtungtung",
     name: "tungtungtung",
-    category: "기타",
+    category: "Other",
     synth: { oscillatorType: "triangle", envelope: { attack: 0.001, decay: 0.3, sustain: 0, release: 0.2 } },
     sampleBaseUrl: "/samples/melodies/etc/tungtungtung/",
   },
   {
     id: "inferno",
-    name: "인페르노",
-    category: "기타",
+    name: "Inferno",
+    category: "Other",
     synth: { oscillatorType: "sawtooth", envelope: { attack: 0.01, decay: 0.4, sustain: 0.3, release: 0.6 } },
     sampleBaseUrl: "/samples/melodies/etc/inferno/",
   },
-  // --- 마인크래프트(노트블록) ---
+  // --- Minecraft (note blocks) ---
   {
     id: "mc-banjo",
-    name: "밴조",
-    category: "마인크래프트",
+    name: "Banjo",
+    category: "Minecraft",
     synth: { oscillatorType: "triangle", envelope: { attack: 0.001, decay: 0.4, sustain: 0, release: 0.3 } },
     sampleBaseUrl: "/samples/melodies/minecraft/banjo/",
   },
   {
     id: "mc-bell",
-    name: "벨",
-    category: "마인크래프트",
+    name: "Bell",
+    category: "Minecraft",
     synth: { oscillatorType: "sine", envelope: { attack: 0.001, decay: 0.6, sustain: 0, release: 1 } },
     sampleBaseUrl: "/samples/melodies/minecraft/bell/",
   },
   {
     id: "mc-cowbell",
-    name: "카우벨",
-    category: "마인크래프트",
+    name: "Cowbell",
+    category: "Minecraft",
     synth: { oscillatorType: "square", envelope: { attack: 0.001, decay: 0.3, sustain: 0, release: 0.3 } },
     sampleBaseUrl: "/samples/melodies/minecraft/cowBell/",
   },
   {
     id: "mc-exp",
-    name: "경험치",
-    category: "마인크래프트",
+    name: "Experience",
+    category: "Minecraft",
     synth: { oscillatorType: "sine", envelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.4 } },
     sampleBaseUrl: "/samples/melodies/minecraft/exp/",
   },
   {
     id: "mc-guitar",
-    name: "어쿠스틱 기타",
-    category: "마인크래프트",
+    name: "Acoustic Guitar",
+    category: "Minecraft",
     synth: { oscillatorType: "triangle", envelope: { attack: 0.005, decay: 0.4, sustain: 0.1, release: 0.5 } },
     sampleBaseUrl: "/samples/melodies/minecraft/guitar/",
   },
   {
     id: "mc-harp",
-    name: "하프",
-    category: "마인크래프트",
+    name: "Harp",
+    category: "Minecraft",
     synth: { oscillatorType: "sine", envelope: { attack: 0.001, decay: 0.5, sustain: 0, release: 0.6 } },
     sampleBaseUrl: "/samples/melodies/minecraft/harp/",
   },
   {
     id: "mc-xylobone",
-    name: "자일로폰",
-    category: "마인크래프트",
+    name: "Xylobone",
+    category: "Minecraft",
     synth: { oscillatorType: "sine", envelope: { attack: 0.001, decay: 0.3, sustain: 0, release: 0.2 } },
     sampleBaseUrl: "/samples/melodies/minecraft/xylobone/",
   },
-  // --- 8비트 ---
+  // --- 8-bit ---
   {
     id: "square12",
     name: "square(12)",
-    category: "8비트",
+    category: "8-bit",
     synth: { oscillatorType: "square", envelope: { attack: 0.001, decay: 0.1, sustain: 0.2, release: 0.1 } },
     sampleBaseUrl: "/samples/melodies/8bit/square(12)/",
     volumePercent: 90,
@@ -216,21 +216,21 @@ export const INSTRUMENTS: InstrumentDef[] = [
   {
     id: "square25",
     name: "square(25)",
-    category: "8비트",
+    category: "8-bit",
     synth: { oscillatorType: "square", envelope: { attack: 0.001, decay: 0.1, sustain: 0.3, release: 0.1 } },
     sampleBaseUrl: "/samples/melodies/8bit/square(25)/",
   },
   {
     id: "square50",
     name: "square(50)",
-    category: "8비트",
+    category: "8-bit",
     synth: { oscillatorType: "square", envelope: { attack: 0.001, decay: 0.1, sustain: 0.5, release: 0.1 } },
     sampleBaseUrl: "/samples/melodies/8bit/square(50)/",
   },
   {
     id: "8bit-triangle",
     name: "triangle",
-    category: "8비트",
+    category: "8-bit",
     synth: { oscillatorType: "triangle", envelope: { attack: 0.001, decay: 0.1, sustain: 0.4, release: 0.1 } },
     sampleBaseUrl: "/samples/melodies/8bit/triangle/",
   },
@@ -239,16 +239,62 @@ export const INSTRUMENTS: InstrumentDef[] = [
 // 악기 선택 팝업 카테고리 순서 — 카테고리가 계속 늘어나서(마인크래프트 추가 등) 이제 2열 그리드
 // 대신 한 줄에 카테고리 하나씩 세로로 쌓는 레이아웃을 씀(InstrumentPicker.tsx 참고).
 export const INSTRUMENT_CATEGORIES: InstrumentCategory[] = [
-  "오케스트라",
-  "신스",
-  "8비트",
-  "국악",
-  "마인크래프트",
-  "기타",
+  "Orchestra",
+  "Synth",
+  "8-bit",
+  "Gugak",
+  "Minecraft",
+  "Other",
 ];
 
 export function getInstrumentById(id: string): InstrumentDef {
   return INSTRUMENTS.find((i) => i.id === id) ?? INSTRUMENTS[0];
+}
+
+// 언어 설정(SettingsModal)이 "한국어"일 때 악기 이름/카테고리 이름을 한글로 보여주기 위한 번역 맵.
+// InstrumentDef.name/InstrumentCategory 자체는 항상 영어(내부 로직 비교용 — App.tsx의
+// beatKit.category === "Music Lab" 같은 비교에 쓰임)라서, 화면 표시용 한글 이름은 따로 여기서 관리함.
+const INSTRUMENT_NAME_KO: Record<string, string> = {
+  piano: "피아노",
+  musicbox: "뮤직박스",
+  marimba: "마림바",
+  xylophone: "실로폰",
+  strings: "바이올린",
+  woodwind: "플루트",
+  gayageum: "가야금",
+  danso: "단소",
+  haegeum: "해금",
+  "synth-pluck": "신스 플럭",
+  "synth-strings": "신스 스트링",
+  "synth-lead": "신스 리드",
+  glass: "글라스",
+  inferno: "인페르노",
+  "mc-banjo": "밴조",
+  "mc-bell": "벨",
+  "mc-cowbell": "카우벨",
+  "mc-exp": "경험치",
+  "mc-guitar": "어쿠스틱 기타",
+  "mc-harp": "하프",
+  "mc-xylobone": "자일로폰",
+};
+
+const INSTRUMENT_CATEGORY_LABEL_KO: Record<InstrumentCategory, string> = {
+  Orchestra: "오케스트라",
+  Gugak: "국악",
+  Synth: "신스",
+  "8-bit": "8비트",
+  Minecraft: "마인크래프트",
+  Other: "기타",
+};
+
+export function getInstrumentDisplayName(def: InstrumentDef, language: "en" | "ko"): string {
+  if (language === "ko") return INSTRUMENT_NAME_KO[def.id] ?? def.name;
+  return def.name;
+}
+
+export function getInstrumentCategoryLabel(category: InstrumentCategory, language: "en" | "ko"): string {
+  if (language === "ko") return INSTRUMENT_CATEGORY_LABEL_KO[category] ?? category;
+  return category;
 }
 
 // 간단 모드 전용 악기 순환 순서. 팝업으로 고르는 대신 버튼 한 번 누를 때마다 여기 순서대로

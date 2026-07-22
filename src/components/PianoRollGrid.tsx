@@ -34,6 +34,8 @@ interface PianoRollGridProps {
   drumStartIndex?: number;
   // 간단 모드는 레이블(음이름/Kick/Snare 텍스트) 열 자체를 안 보여줌. 고급 모드는 그대로 보여줌.
   showLabels?: boolean;
+  // 방향키(←/→)로 옮기는 "재생 시작 위치" 마커 — 해당 스텝 컬럼에 강조색 세로선을 그림.
+  startStep?: number;
 }
 
 // 키보드로 건반 미리듣기할 때 App에서 이걸 호출해서 해당 음이름의 레이블을 흰색으로 깜빡이게 함.
@@ -77,6 +79,7 @@ export const PianoRollGrid = forwardRef<PianoRollGridHandle, PianoRollGridProps>
       useShapedDrumIcons = true,
       drumStartIndex = 0,
       showLabels = true,
+      startStep = 0,
     },
     ref,
   ) {
@@ -368,6 +371,7 @@ export const PianoRollGrid = forwardRef<PianoRollGridHandle, PianoRollGridProps>
         activeCells={cells}
         useShapedDrumIcons={useShapedDrumIcons}
         drumStartIndex={drumStartIndex}
+        startStep={startStep}
         onCellMouseDown={handleCellMouseDown}
         onCellMouseEnter={handleCellMouseEnter}
         registerCellRef={(key, el) => {
@@ -391,6 +395,7 @@ interface GridBodyProps {
   activeCells: Set<string>;
   useShapedDrumIcons: boolean;
   drumStartIndex: number;
+  startStep: number;
   onCellMouseDown: (rowIndex: number, stepIndex: number) => void;
   onCellMouseEnter: (rowIndex: number, stepIndex: number) => void;
   registerCellRef: (key: string, el: HTMLButtonElement | null) => void;
@@ -409,6 +414,7 @@ const GridBody = memo(function GridBody({
   activeCells,
   useShapedDrumIcons,
   drumStartIndex,
+  startStep,
   onCellMouseDown,
   onCellMouseEnter,
   registerCellRef,
@@ -453,6 +459,7 @@ const GridBody = memo(function GridBody({
                 classes.push("drum-cell");
                 if (drumType) classes.push(`drum-${drumType}`);
               }
+              if (stepIndex === startStep) classes.push("start-marker");
 
               return (
                 <button

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import type { Instrument } from "../hooks/useSequencer";
 import type { AppMode } from "./Header";
-import { getInstrumentById } from "../lib/instruments";
-import { getBeatKitById } from "../lib/beatKits";
+import { getInstrumentById, getInstrumentDisplayName } from "../lib/instruments";
+import { getBeatKitById, getBeatKitDisplayName } from "../lib/beatKits";
+import { t, type Language } from "../lib/i18n";
 
 interface TransportBarProps {
   mode: AppMode;
@@ -40,6 +41,7 @@ interface TransportBarProps {
   onOpenBeatKitPicker: () => void;
   // 간단 모드 전용 — 비트 버튼 누를 때마다 뮤직랩 킷 순서(일렉트로닉→블록→킷→콩가→...)로 넘어감.
   onCycleBeatKit: () => void;
+  language: Language;
 }
 
 // docs/DESIGN.md 의 transport-bar 스펙을 3열 그리드로 구성: 좌측(재생+악기토글+스텝표시) - 중앙(템포) - 우측(undo/redo/프로젝트 메뉴)
@@ -75,6 +77,7 @@ export function TransportBar({
   beatKitId,
   onOpenBeatKitPicker,
   onCycleBeatKit,
+  language,
 }: TransportBarProps) {
   const selectedInstrument = getInstrumentById(instrumentId);
   const selectedBeatKit = getBeatKitById(beatKitId);
@@ -123,7 +126,7 @@ export function TransportBar({
                 else onInstrumentChange("piano");
               }}
             >
-              {selectedInstrument.name}
+              {getInstrumentDisplayName(selectedInstrument, language)}
             </button>
             <button
               className={instrument === "drum" ? "active" : ""}
@@ -134,7 +137,7 @@ export function TransportBar({
                 else onInstrumentChange("drum");
               }}
             >
-              {selectedBeatKit.name}
+              {getBeatKitDisplayName(selectedBeatKit, language)}
             </button>
           </div>
         )}
@@ -143,14 +146,14 @@ export function TransportBar({
             마림바→피아노→바이올린→플루트→신스→마림바... 순서로 바로 넘어감 */}
         {mode === "simple" && (
           <button className="instrument-select-button" onClick={onCycleInstrument}>
-            {selectedInstrument.name}
+            {getInstrumentDisplayName(selectedInstrument, language)}
           </button>
         )}
 
         {/* 비트도 똑같은 방식 — 뮤직랩 4개(일렉트로닉→블록→킷→콩가→...)를 순서대로 돌아가며 씀 */}
         {mode === "simple" && (
           <button className="instrument-select-button" onClick={onCycleBeatKit}>
-            {selectedBeatKit.name}
+            {getBeatKitDisplayName(selectedBeatKit, language)}
           </button>
         )}
 
@@ -190,12 +193,12 @@ export function TransportBar({
           <button
             className="volume-expand-toggle"
             onClick={handleToggleVolumeExpand}
-            title={volumeExpanded ? "평균으로 합치기" : "멜로디/비트 따로 조절"}
+            title={t(language, volumeExpanded ? "transport.mergeToAverage" : "transport.adjustSeparately")}
           >
             {volumeExpanded ? "›" : "‹"}
           </button>
 
-          <div className="volume-group" title="마스터 볼륨">
+          <div className="volume-group" title={t(language, "transport.masterVolume")}>
             <span className="volume-label">VOL</span>
             {/* 접혀있을 때만 보여줌 — 펼쳐지면 아래 멜로디/비트 슬라이더가 대신 보임 */}
             <div className={`volume-collapse ${volumeExpanded ? "volume-collapse-hidden" : ""}`}>
@@ -211,8 +214,8 @@ export function TransportBar({
           </div>
 
           <div className={`volume-expand-panel ${volumeExpanded ? "volume-expand-panel-open" : ""}`}>
-            <div className="volume-group" title="멜로디 볼륨">
-              <span className="volume-label">멜로디</span>
+            <div className="volume-group" title={t(language, "transport.melodyVolume")}>
+              <span className="volume-label">{t(language, "transport.melody")}</span>
               <input
                 className="volume-slider"
                 type="range"
@@ -223,8 +226,8 @@ export function TransportBar({
               />
             </div>
 
-            <div className="volume-group" title="비트 볼륨">
-              <span className="volume-label">비트</span>
+            <div className="volume-group" title={t(language, "transport.beatVolume")}>
+              <span className="volume-label">{t(language, "transport.beat")}</span>
               <input
                 className="volume-slider"
                 type="range"
@@ -243,7 +246,7 @@ export function TransportBar({
         <button className="button-icon-circular" onClick={onRedo} disabled={!canRedo} title="Redo">
           ↻
         </button>
-        <button className="button-icon-circular" onClick={onOpenSettings} title="설정">
+        <button className="button-icon-circular" onClick={onOpenSettings} title={t(language, "transport.settings")}>
           ⚙
         </button>
 
@@ -270,7 +273,7 @@ export function TransportBar({
                     setMenuOpen(false);
                   }}
                 >
-                  MIDI 불러오기(베타)
+                  {t(language, "transport.importMidiBeta")}
                 </button>
               )}
               <button
@@ -280,7 +283,7 @@ export function TransportBar({
                   setMenuOpen(false);
                 }}
               >
-                MIDI 내보내기
+                {t(language, "transport.exportMidi")}
               </button>
               <button
                 className="file-menu-item"
@@ -289,7 +292,7 @@ export function TransportBar({
                   setMenuOpen(false);
                 }}
               >
-                WAV로 내보내기
+                {t(language, "transport.exportWav")}
               </button>
               <button
                 className="file-menu-item"
@@ -298,12 +301,12 @@ export function TransportBar({
                   setMenuOpen(false);
                 }}
               >
-                링크 복사
+                {t(language, "transport.copyLink")}
               </button>
             </div>
           )}
           <button className="button-primary" onClick={() => setMenuOpen((v) => !v)}>
-            저장 ▾
+            {t(language, "transport.save")}
           </button>
         </div>
       </div>

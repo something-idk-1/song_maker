@@ -1,5 +1,6 @@
 // docs/DESIGN.md 의 header-bar 스펙: 로고(좌측) - 모드 전환 - 뷰별 툴 클러스터 - nav-pill-group(우측)
 import { useEffect, useRef, useState } from "react";
+import { t, type Language } from "../lib/i18n";
 
 export type ViewName = "piano-roll" | "playlist";
 export type AppMode = "simple" | "advanced";
@@ -13,6 +14,7 @@ interface HeaderProps {
   onRestartAll: () => void;
   onRestartMelody: () => void;
   onRestartBeat: () => void;
+  language: Language;
 }
 
 export function Header({
@@ -23,6 +25,7 @@ export function Header({
   onRestartAll,
   onRestartMelody,
   onRestartBeat,
+  language,
 }: HeaderProps) {
   const [restartMenuOpen, setRestartMenuOpen] = useState(false);
   const restartMenuRef = useRef<HTMLDivElement>(null);
@@ -60,8 +63,8 @@ export function Header({
         </div>
 
         {mode === "advanced" && view === "playlist" && (
-          <button className="icon-tool-button" title="패턴 선택">
-            패턴 ▾
+          <button className="icon-tool-button" title={t(language, "header.selectPattern")}>
+            {t(language, "header.pattern")}
           </button>
         )}
       </div>
@@ -72,13 +75,13 @@ export function Header({
             className={`nav-pill ${view === "playlist" ? "active" : ""}`}
             onClick={() => onViewChange("playlist")}
           >
-            플레이리스트
+            {t(language, "header.playlist")}
           </button>
           <button
             className={`nav-pill ${view === "piano-roll" ? "active" : ""}`}
             onClick={() => onViewChange("piano-roll")}
           >
-            피아노 롤
+            {t(language, "header.pianoRoll")}
           </button>
         </div>
       )}
@@ -95,7 +98,7 @@ export function Header({
                     setRestartMenuOpen(false);
                   }}
                 >
-                  멜로디 초기화
+                  {t(language, "header.restartMelody")}
                 </button>
                 <button
                   className="restart-menu-item"
@@ -104,7 +107,7 @@ export function Header({
                     setRestartMenuOpen(false);
                   }}
                 >
-                  비트 초기화
+                  {t(language, "header.restartBeat")}
                 </button>
                 <button
                   className="restart-menu-item"
@@ -113,21 +116,21 @@ export function Header({
                     setRestartMenuOpen(false);
                   }}
                 >
-                  전체 초기화
+                  {t(language, "header.restartAll")}
                 </button>
               </div>
             )}
             <button
               className="header-restart-button"
               onClick={() => setRestartMenuOpen((v) => !v)}
-              title="새로 시작"
+              title={t(language, "header.startOver")}
             >
-              재시작 ▾
+              {t(language, "header.restartMenu")}
             </button>
           </div>
         ) : (
-          <button className="header-restart-button" onClick={onRestartAll} title="새로 시작">
-            재시작
+          <button className="header-restart-button" onClick={onRestartAll} title={t(language, "header.startOver")}>
+            {t(language, "header.restart")}
           </button>
         )}
       </div>

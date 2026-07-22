@@ -36,6 +36,9 @@ interface UseSequencerArgs {
   beatVolumePercent: number;
   // 드럼 행에 쓸 비트킷 id — lib/beatKits.ts 참고. 지금은 고를 UI가 없어서 항상 기본값(뮤직랩 기본)만 옴.
   beatKitId?: string;
+  // 재생 시작 위치(스텝 인덱스) — 방향키(←/→)로 옮길 수 있는 "곡 시작 지점" 마커.
+  // 재생(스페이스바/재생 버튼)을 누르면 항상 0이 아니라 이 스텝부터 시작함.
+  startStep?: number;
 }
 
 // 0이면 완전 무음(-Infinity dB), 아니면 20*log10(비율)로 dB 변환.
@@ -72,8 +75,17 @@ export function useSequencer({
   melodyVolumePercent,
   beatVolumePercent,
   beatKitId = DEFAULT_BEAT_KIT_ID,
+  startStep = 0,
 }: UseSequencerArgs) {
-  const [currentStep, setCurrentStep] = useState(0);
+  const [currentStep, setCurrentStep] = useState(startStep);
+  // 시퀀스 콜백/재시작 effect들이 최신 startStep을 읽을 수 있게 ref로도 들고 있음
+  // (activeCellsRef/rowInstrumentsRef랑 같은 패턴 — 재생 중에 값이 바뀌어도 재생 자체는 안 끊기게).
+  const startStepRef = useRef(startStep);
+  useEffect(() => {
+    startStepRef.current = startStep;
+    if (!isPlaying) setCurrentStep(startStep);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startStep]);
   const pianoSynthRef = useRef<MelodyVoice | null>(null);
   const drumSynthRef = useRef<Tone.MembraneSynth | null>(null);
   // 비트킷이 실제 샘플을 갖고 있으면(뮤직랩 기본) 이 Players로 재생하고, 없으면(신스 비트)
@@ -282,6 +294,8 @@ export function useSequencer({
 
     // noteRows/stepCount가 바뀔 때(예: 설정 변경)는 시퀀스를 새로 만들었으니,
     // 그 시점에 이미 재생 중이었다면 새 시퀀스도 이어서 재생되게 시작해줌.
+    // (여기선 startStep 오프셋을 안 씀 — 이미 재생 중이던 Transport 시각에 그냥 이어붙이는
+    // 것뿐이라, 오프셋을 또 적용하면 아래 isPlaying effect에서 이미 처리한 시작 위치가 중복/꼬임)
     if (wasPlaying) {
       sequence.start(0);
     }
@@ -296,13 +310,19 @@ export function useSequencer({
     if (!isPlaying) {
       Tone.Transport.stop();
       sequenceRef.current?.stop(0);
-      setCurrentStep(0);
+      setCurrentStep(startStepRef.current);
       return;
     }
 
     Tone.start().then(() => {
+      // 시퀀스 자체는 항상 오프셋 없이(0) 시작하고, "몇 번째 스텝부터 들리게 할지"는
+      // Transport의 시작 오프셋으로 처리함. Sequence.start(time, offset)에 직접 오프셋을
+      // 주면(예전 방식) Tone.Part가 오프셋보다 이전 시각인 이벤트들을 전부 "이미 지나간 시각"으로
+      // 취급해 한꺼번에 즉시 재생해버려서, 아직 로딩 안 된 샘플까지 한번에 트리거되며
+      // "buffer is either not set or not loaded" 에러가 났었음. Transport.start(time, offset)는
+      // 이런 용도(중간 지점부터 재생)로 공식 지원되는 방식이라 이 문제가 없음.
       sequenceRef.current?.start(0);
-      Tone.Transport.start();
+      Tone.Transport.start(undefined, Tone.Time("16n").toSeconds() * startStepRef.current);
     });
 
     return () => {

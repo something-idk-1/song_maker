@@ -50,7 +50,7 @@ export function triggerDrumRowSynth(synth: DrumRowSynth, spec: DrumSynthSpec, ti
   }
 }
 
-export type BeatKitCategory = "뮤직랩" | "기타";
+export type BeatKitCategory = "Music Lab" | "Other";
 
 export interface BeatKitDef {
   id: string;
@@ -81,11 +81,11 @@ function buildNumberedKit(
 }
 
 export const BEAT_KITS: BeatKitDef[] = [
-  // --- 뮤직랩 (간단 모드에서 순서대로 순환하는 4개) ---
+  // --- Music Lab (the 4 that cycle in order in simple mode) ---
   {
     id: "musiclab_electronic",
-    name: "일렉트로닉",
-    category: "뮤직랩",
+    name: "Electronic",
+    category: "Music Lab",
     rowLabels: ["Snare", "Kick"],
     sampleUrls: {
       Kick: "/samples/beat/musiclab_electronic/kick.wav",
@@ -94,8 +94,8 @@ export const BEAT_KITS: BeatKitDef[] = [
   },
   {
     id: "musiclab_blocks",
-    name: "블록",
-    category: "뮤직랩",
+    name: "Blocks",
+    category: "Music Lab",
     rowLabels: ["block1", "block2"],
     sampleUrls: {
       block1: "/samples/beat/musiclab_blocks/block1.wav",
@@ -104,8 +104,8 @@ export const BEAT_KITS: BeatKitDef[] = [
   },
   {
     id: "musiclab_kit",
-    name: "킷",
-    category: "뮤직랩",
+    name: "Kit",
+    category: "Music Lab",
     rowLabels: ["Snare", "Kick"],
     sampleUrls: {
       Kick: "/samples/beat/musiclab_kit/kick.wav",
@@ -114,19 +114,19 @@ export const BEAT_KITS: BeatKitDef[] = [
   },
   {
     id: "musiclab_conga",
-    name: "콩가",
-    category: "뮤직랩",
+    name: "Conga",
+    category: "Music Lab",
     rowLabels: ["conga1", "conga2"],
     sampleUrls: {
       conga1: "/samples/beat/musiclab_conga/conga1.wav",
       conga2: "/samples/beat/musiclab_conga/conga2.wav",
     },
   },
-  // --- 기타 (뮤직랩 아닌 나머지 전부 여기로 묶음) ---
+  // --- Other (everything that isn't Music Lab) ---
   {
     id: "synth-beat",
-    name: "신스 비트",
-    category: "기타",
+    name: "Synth Beat",
+    category: "Other",
     rowLabels: ["Kick", "Snare", "HiHat"],
     rowSynths: {
       Kick: { kind: "membrane", pitch: "C1" },
@@ -134,33 +134,63 @@ export const BEAT_KITS: BeatKitDef[] = [
       HiHat: { kind: "metal" },
     },
   },
-  buildNumberedKit("8bitchiptune", "8비트 칩튠", "기타", "/samples/beat/8bitchiptune/", 12),
-  buildNumberedKit("breakcore", "브레이크코어", "기타", "/samples/beat/breakcore/", 12),
+  buildNumberedKit("8bitchiptune", "8-bit Chiptune", "Other", "/samples/beat/8bitchiptune/", 12),
+  buildNumberedKit("breakcore", "Breakcore", "Other", "/samples/beat/breakcore/", 12),
   // jazz 폴더엔 .flp 프로젝트 파일도 하나 섞여있어서(샘플 아님) 10개(1~10)만 씀.
-  buildNumberedKit("jazz", "재즈", "기타", "/samples/beat/jazz/", 10),
+  buildNumberedKit("jazz", "Jazz", "Other", "/samples/beat/jazz/", 10),
   {
     id: "gugak",
-    name: "국악",
-    category: "기타",
-    rowLabels: ["장구1", "장구2", "징", "좌고", "꽹과리", "꽹과리2", "꽹과리3"],
+    name: "Gugak",
+    category: "Other",
+    rowLabels: ["Janggu 1", "Janggu 2", "Jing", "Jwago", "Kkwaenggwari", "Kkwaenggwari 2", "Kkwaenggwari 3"],
     sampleUrls: {
-      "장구1": "/samples/beat/gugak/janggu1.wav",
-      "장구2": "/samples/beat/gugak/janggu2.wav",
-      "징": "/samples/beat/gugak/jing.wav",
-      "좌고": "/samples/beat/gugak/jwago.wav",
-      "꽹과리": "/samples/beat/gugak/kkwaenggwari.wav",
-      "꽹과리2": "/samples/beat/gugak/kkwaenggwari2.wav",
-      "꽹과리3": "/samples/beat/gugak/kkwaenggwari3.wav",
+      "Janggu 1": "/samples/beat/gugak/janggu1.wav",
+      "Janggu 2": "/samples/beat/gugak/janggu2.wav",
+      "Jing": "/samples/beat/gugak/jing.wav",
+      "Jwago": "/samples/beat/gugak/jwago.wav",
+      "Kkwaenggwari": "/samples/beat/gugak/kkwaenggwari.wav",
+      "Kkwaenggwari 2": "/samples/beat/gugak/kkwaenggwari2.wav",
+      "Kkwaenggwari 3": "/samples/beat/gugak/kkwaenggwari3.wav",
     },
   },
 ];
 
-export const BEAT_KIT_CATEGORIES: BeatKitCategory[] = ["뮤직랩", "기타"];
+export const BEAT_KIT_CATEGORIES: BeatKitCategory[] = ["Music Lab", "Other"];
 
 export const DEFAULT_BEAT_KIT_ID = "musiclab_electronic";
 
 export function getBeatKitById(id: string): BeatKitDef {
   return BEAT_KITS.find((k) => k.id === id) ?? BEAT_KITS[0];
+}
+
+// instruments.ts의 getInstrumentDisplayName이랑 같은 패턴 — 킷/카테고리 이름 자체(BeatKitDef.name,
+// BeatKitCategory)는 항상 영어(App.tsx의 category === "Music Lab" 비교 등에 쓰임)라서, 한국어
+// 설정일 때 화면에 보여줄 한글 이름은 따로 여기서 관리함.
+const BEAT_KIT_NAME_KO: Record<string, string> = {
+  musiclab_electronic: "일렉트로닉",
+  musiclab_blocks: "블록",
+  musiclab_kit: "킷",
+  musiclab_conga: "콩가",
+  "synth-beat": "신스 비트",
+  "8bitchiptune": "8비트 칩튠",
+  breakcore: "브레이크코어",
+  jazz: "재즈",
+  gugak: "국악",
+};
+
+const BEAT_KIT_CATEGORY_LABEL_KO: Record<BeatKitCategory, string> = {
+  "Music Lab": "뮤직랩",
+  Other: "기타",
+};
+
+export function getBeatKitDisplayName(kit: BeatKitDef, language: "en" | "ko"): string {
+  if (language === "ko") return BEAT_KIT_NAME_KO[kit.id] ?? kit.name;
+  return kit.name;
+}
+
+export function getBeatKitCategoryLabel(category: BeatKitCategory, language: "en" | "ko"): string {
+  if (language === "ko") return BEAT_KIT_CATEGORY_LABEL_KO[category] ?? category;
+  return category;
 }
 
 // 간단 모드 전용 순환 순서 — 버튼 누를 때마다 다음 뮤직랩 킷으로 넘어감(마지막 다음엔 처음으로).
