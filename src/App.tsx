@@ -81,7 +81,7 @@ function App() {
   const [gridZoom, setGridZoom] = useState(1.2);
   const clampZoom = useCallback(
     (v: number) => {
-      const minZoom = settings.rangeOctaves === 4 ? 0.6 : 1;
+      const minZoom = settings.rangeOctaves === 4 ? 0.4 : 1;
       return Math.min(2.5, Math.max(minZoom, v));
     },
     [settings.rangeOctaves],

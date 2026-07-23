@@ -1,4 +1,4 @@
-export type Language = "en" | "ko";
+export type Language = "en" | "ko" ;
 
 type StringKey = keyof typeof STRINGS;
 
