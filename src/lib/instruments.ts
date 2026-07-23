@@ -154,6 +154,13 @@ export const INSTRUMENTS: InstrumentDef[] = [
     synth: { oscillatorType: "sawtooth", envelope: { attack: 0.01, decay: 0.4, sustain: 0.3, release: 0.6 } },
     sampleBaseUrl: "/samples/melodies/etc/inferno/",
   },
+  {
+    id: "inferno2",
+    name: "Inferno 2",
+    category: "Other",
+    synth: { oscillatorType: "sawtooth", envelope: { attack: 0.01, decay: 0.4, sustain: 0.3, release: 0.6 } },
+    sampleBaseUrl: "/samples/melodies/etc/inferno_2/",
+  },
   // --- Minecraft (note blocks) ---
   {
     id: "mc-banjo",
@@ -269,6 +276,7 @@ const INSTRUMENT_NAME_KO: Record<string, string> = {
   "synth-lead": "신스 리드",
   glass: "글라스",
   inferno: "인페르노",
+  inferno2: "인페르노 2",
   "mc-banjo": "밴조",
   "mc-bell": "벨",
   "mc-cowbell": "카우벨",
