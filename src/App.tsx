@@ -106,6 +106,8 @@ function App() {
 
   const [followPlayhead, setFollowPlayhead] = useState(true);
 
+  const [shareToastVisible, setShareToastVisible] = useState(false);
+
   const handleExperimentalFeaturesChange = useCallback((enabled: boolean) => {
     setExperimentalFeatures(enabled);
     if (!enabled) {
@@ -481,6 +483,13 @@ function App() {
     [exportModalKind, performExportMidi, performExportWav],
   );
 
+  const shareToastTimeoutRef = useRef<number | null>(null);
+  const showShareToast = useCallback(() => {
+    if (shareToastTimeoutRef.current !== null) window.clearTimeout(shareToastTimeoutRef.current);
+    setShareToastVisible(true);
+    shareToastTimeoutRef.current = window.setTimeout(() => setShareToastVisible(false), 2200);
+  }, []);
+
   const handleShareLink = useCallback(async () => {
     const payload: SharedPayload = {
       settings,
@@ -493,14 +502,15 @@ function App() {
     navigator.clipboard
       .writeText(url)
       .then(() => {
-        // eslint-disable-next-line no-alert
-        alert(t(language, "app.shareCopied"));
+        // alert() 대신 메뉴 위에 살짝 떴다 사라지는 토스트로 바꿈 — 링크 복사할 때마다
+        // "확인"을 눌러야 하는 모달은 너무 방해됨.
+        showShareToast();
       })
       .catch(() => {
         // eslint-disable-next-line no-alert
         prompt(t(language, "app.shareCopyPrompt"), url);
       });
-  }, [settings, mode, instrument, bpm, activeCells, language]);
+  }, [settings, mode, instrument, bpm, activeCells, showShareToast, language]);
 
   useEffect(() => {
     (async () => {
@@ -578,6 +588,8 @@ function App() {
           <PlaylistPlaceholder language={language} />
         )}
       </main>
+
+      {shareToastVisible && <div className="share-toast">{t(language, "app.shareCopied")}</div>}
 
       <TransportBar
         mode={mode}

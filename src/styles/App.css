@@ -500,6 +500,41 @@ body,
   content: " •";
 }
 
+.share-toast {
+  position: fixed;
+  right: 24px;
+  bottom: calc(var(--transport-height) + 16px);
+  z-index: 50;
+  padding: 10px 16px;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+  animation: share-toast-fade 2.2s ease forwards;
+}
+
+@keyframes share-toast-fade {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  80% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+}
+
 .bar-toolbar {
   position: absolute;
   top: 12px;
