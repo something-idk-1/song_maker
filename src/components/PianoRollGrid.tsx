@@ -2,6 +2,7 @@ import {
   Fragment,
   forwardRef,
   memo,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useMemo,
@@ -28,6 +29,11 @@ interface PianoRollGridProps {
   showLabels?: boolean;
   startStep?: number;
   pinDrumsToBottom?: boolean;
+  barRulerEnabled?: boolean;
+  selectedBar?: number | null;
+  copiedBar?: number | null;
+  onSelectBar?: (barIndex: number) => void;
+  followPlayhead?: boolean;
 }
 
 export interface PianoRollGridHandle {
@@ -63,12 +69,20 @@ export const PianoRollGrid = forwardRef<PianoRollGridHandle, PianoRollGridProps>
       showLabels = true,
       startStep = 0,
       pinDrumsToBottom = true,
+      barRulerEnabled = false,
+      selectedBar = null,
+      copiedBar = null,
+      onSelectBar,
+      followPlayhead = false,
     },
     ref,
   ) {
   const cellRefs = useRef(new Map<string, HTMLButtonElement>());
   const labelRefs = useRef(new Map<number, HTMLDivElement>());
   const prevFlashStepRef = useRef<number | null>(null);
+  const prevPlayheadStepRef = useRef<number>(0);
+  const prevIsPlayingRef = useRef<boolean>(false);
+  const followTargetScrollLeftRef = useRef<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const labelDraggingRef = useRef(false);
   const lastDraggedRowRef = useRef<number | null>(null);
@@ -179,38 +193,56 @@ export const PianoRollGrid = forwardRef<PianoRollGridHandle, PianoRollGridProps>
   const workingCellsRef = useRef<Set<string> | null>(null);
   const dragModeRef = useRef<"add" | "remove">("add");
 
-  const applyCellDom = (rowIndex: number, stepIndex: number, isActive: boolean) => {
-    const key = cellKey(rowIndex, stepIndex);
-    const el = cellRefs.current.get(key);
-    if (!el) return;
-    el.classList.toggle("active", isActive);
-    const isFlatRow = noteRows[rowIndex]?.includes("#") ?? false;
-    el.classList.toggle("flat-row", isFlatRow && !isActive);
-  };
+  const applyCellDom = useCallback(
+    (rowIndex: number, stepIndex: number, isActive: boolean) => {
+      const key = cellKey(rowIndex, stepIndex);
+      const el = cellRefs.current.get(key);
+      if (!el) return;
+      el.classList.toggle("active", isActive);
+      const isFlatRow = noteRows[rowIndex]?.includes("#") ?? false;
+      el.classList.toggle("flat-row", isFlatRow && !isActive);
+    },
+    [noteRows],
+  );
 
-  const handleCellMouseDown = (rowIndex: number, stepIndex: number) => {
-    const key = cellKey(rowIndex, stepIndex);
-    const working = new Set(cells);
-    const willBeActive = !working.has(key);
-    dragModeRef.current = willBeActive ? "add" : "remove";
-    if (willBeActive) working.add(key);
-    else working.delete(key);
-    workingCellsRef.current = working;
-    applyCellDom(rowIndex, stepIndex, willBeActive);
-    if (willBeActive) onPreviewNote(rowIndex, noteRows[rowIndex]);
-  };
+  // useCallback으로 참조를 고정해둠 — 안 그러면 재생 중 currentStep이 바뀔 때마다(스텝마다)
+  // PianoRollGrid가 리렌더되면서 이 함수들이 매번 새로 만들어지고, 그게 GridBody(React.memo)에
+  // 새 prop으로 들어가서 memo 비교가 매번 실패 -> 수천 개 셀을 가진 GridBody 전체가 매 스텝마다
+  // 다시 렌더링되는 렉의 주범이었음.
+  const handleCellMouseDown = useCallback(
+    (rowIndex: number, stepIndex: number) => {
+      const key = cellKey(rowIndex, stepIndex);
+      const working = new Set(cells);
+      const willBeActive = !working.has(key);
+      dragModeRef.current = willBeActive ? "add" : "remove";
+      if (willBeActive) working.add(key);
+      else working.delete(key);
+      workingCellsRef.current = working;
+      applyCellDom(rowIndex, stepIndex, willBeActive);
+      if (willBeActive) onPreviewNote(rowIndex, noteRows[rowIndex]);
+    },
+    [cells, applyCellDom, onPreviewNote, noteRows],
+  );
 
-  const handleCellMouseEnter = (rowIndex: number, stepIndex: number) => {
-    const working = workingCellsRef.current;
-    if (!working) return;
-    const key = cellKey(rowIndex, stepIndex);
-    const shouldBeActive = dragModeRef.current === "add";
-    if (working.has(key) === shouldBeActive) return;
-    if (shouldBeActive) working.add(key);
-    else working.delete(key);
-    applyCellDom(rowIndex, stepIndex, shouldBeActive);
-    if (shouldBeActive) onPreviewNote(rowIndex, noteRows[rowIndex]);
-  };
+  const handleCellMouseEnter = useCallback(
+    (rowIndex: number, stepIndex: number) => {
+      const working = workingCellsRef.current;
+      if (!working) return;
+      const key = cellKey(rowIndex, stepIndex);
+      const shouldBeActive = dragModeRef.current === "add";
+      if (working.has(key) === shouldBeActive) return;
+      if (shouldBeActive) working.add(key);
+      else working.delete(key);
+      applyCellDom(rowIndex, stepIndex, shouldBeActive);
+      if (shouldBeActive) onPreviewNote(rowIndex, noteRows[rowIndex]);
+    },
+    [applyCellDom, onPreviewNote, noteRows],
+  );
+
+  const registerCellRef = useCallback((key: string, el: HTMLButtonElement | null) => {
+    if (el) cellRefs.current.set(key, el);
+    else cellRefs.current.delete(key);
+  }, []);
 
   useEffect(() => {
     const handleMouseUp = () => {
@@ -296,6 +328,63 @@ export const PianoRollGrid = forwardRef<PianoRollGridHandle, PianoRollGridProps>
     }
   }, [currentStep, isPlaying, noteRows.length, cells]);
 
+  // 재생 위치 자동 스크롤 — 목표 위치(재생 헤드가 화면 중앙에 오도록 하는 스크롤 값)만 여기서
+  // 계산해서 ref에 저장해두고, 실제로 화면을 움직이는 건 아래의 별도 requestAnimationFrame
+  // 루프가 매 프레임 조금씩 따라가는 방식으로 함. 예전엔 스텝(16분음표)마다 el.scrollTo({behavior:
+  // "smooth"})를 새로 호출했는데, 템포가 빠르면 스텝 간격이 브라우저 smooth-scroll 애니메이션
+  // 지속시간보다 짧아져서 애니메이션이 끝나기도 전에 계속 새로 시작되며 점점 뒤처지다가
+  // 결국 재생 헤드가 화면 밖으로 넘어가버리는 문제가 있었음. rAF로 직접 매 프레임 이징하면
+  // 템포와 무관하게 항상 일정한 속도로 따라잡아서 이런 문제가 없음.
+  useEffect(() => {
+    if (!followPlayhead) return;
+    const el = containerRef.current;
+    if (!el) return;
+
+    const viewportStepWidth = el.clientWidth - labelWidth;
+    if (viewportStepWidth <= 0) return;
+
+    const cellCenterX = labelWidth + currentStep * cellWidth + cellWidth / 2;
+    const targetScreenX = labelWidth + viewportStepWidth / 2;
+    const desiredScrollLeft = Math.max(0, cellCenterX - targetScreenX);
+
+    const justStartedPlaying = isPlaying && !prevIsPlayingRef.current;
+    const loopedBack = isPlaying && currentStep < prevPlayheadStepRef.current;
+
+    if (isPlaying && (justStartedPlaying || loopedBack)) {
+      el.scrollLeft = desiredScrollLeft;
+    }
+    followTargetScrollLeftRef.current = desiredScrollLeft;
+
+    prevPlayheadStepRef.current = currentStep;
+    prevIsPlayingRef.current = isPlaying;
+  }, [currentStep, isPlaying, followPlayhead, cellWidth, labelWidth]);
+
+  useEffect(() => {
+    if (!followPlayhead || !isPlaying) return;
+    const el = containerRef.current;
+    if (!el) return;
+
+    let rafId = 0;
+    let lastTime = performance.now();
+
+    const tick = (now: number) => {
+      const dt = Math.min(0.05, (now - lastTime) / 1000);
+      lastTime = now;
+      const target = followTargetScrollLeftRef.current;
+      const diff = target - el.scrollLeft;
+      if (Math.abs(diff) > 0.5) {
+        // 프레임 시간에 비례하는 이징 계수 — 프레임레이트가 들쭉날쭉해도 항상 같은 속도로
+        // 따라잡음(약 300ms 안에 남은 거리의 대부분을 좁힘).
+        const easeFactor = 1 - Math.pow(0.001, dt);
+        el.scrollLeft += diff * easeFactor;
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [followPlayhead, isPlaying]);
+
   const gridSizeVars = {
     "--cell-w": `${cellWidth}px`,
     "--cell-h": `${rowHeight}px`,
@@ -306,6 +395,7 @@ export const PianoRollGrid = forwardRef<PianoRollGridHandle, PianoRollGridProps>
     <div className="piano-roll" ref={containerRef} style={gridSizeVars}>
       {showLabels && (
       <div className="piano-roll-labels">
+        {barRulerEnabled && <div className="piano-roll-bar-ruler-spacer" />}
         {noteRows.map((note, rowIndex) => {
           if (!isRowVisible(rowIndex)) return null;
           const stickyBottom = drumStickyOffsets[rowIndex];
@@ -360,12 +450,13 @@ export const PianoRollGrid = forwardRef<PianoRollGridHandle, PianoRollGridProps>
         useShapedDrumIcons={useShapedDrumIcons}
         drumStartIndex={drumStartIndex}
         startStep={startStep}
+        barRulerEnabled={barRulerEnabled}
+        selectedBar={selectedBar}
+        copiedBar={copiedBar}
+        onSelectBar={onSelectBar}
         onCellMouseDown={handleCellMouseDown}
         onCellMouseEnter={handleCellMouseEnter}
-        registerCellRef={(key, el) => {
-          if (el) cellRefs.current.set(key, el);
-          else cellRefs.current.delete(key);
-        }}
+        registerCellRef={registerCellRef}
       />
     </div>
   );
@@ -386,6 +477,10 @@ interface GridBodyProps {
   useShapedDrumIcons: boolean;
   drumStartIndex: number;
   startStep: number;
+  barRulerEnabled: boolean;
+  selectedBar: number | null;
+  copiedBar: number | null;
+  onSelectBar?: (barIndex: number) => void;
   onCellMouseDown: (rowIndex: number, stepIndex: number) => void;
   onCellMouseEnter: (rowIndex: number, stepIndex: number) => void;
   registerCellRef: (key: string, el: HTMLButtonElement | null) => void;
@@ -405,14 +500,36 @@ const GridBody = memo(function GridBody({
   useShapedDrumIcons,
   drumStartIndex,
   startStep,
+  barRulerEnabled,
+  selectedBar,
+  copiedBar,
+  onSelectBar,
   onCellMouseDown,
   onCellMouseEnter,
   registerCellRef,
 }: GridBodyProps) {
   const steps = Array.from({ length: stepCount }, (_, i) => i);
+  const barCount = Math.max(1, Math.round(stepCount / stepsPerBar));
+  const barIndexes = Array.from({ length: barCount }, (_, i) => i);
 
   return (
     <div className="piano-roll-grid">
+      {barRulerEnabled && (
+        <div className="piano-roll-bar-ruler">
+          {barIndexes.map((barIndex) => (
+            <button
+              key={barIndex}
+              className={`piano-roll-bar-ruler-cell ${selectedBar === barIndex ? "selected" : ""} ${
+                copiedBar === barIndex ? "copied" : ""
+              }`}
+              style={{ width: `calc(var(--cell-w, 44px) * ${stepsPerBar})` }}
+              onClick={() => onSelectBar?.(barIndex)}
+            >
+              {barIndex + 1}
+            </button>
+          ))}
+        </div>
+      )}
       {noteRows.map((note, rowIndex) => {
         if (visibleRows && !visibleRows[rowIndex]) return null;
         const isFlatRow = note.includes("#");

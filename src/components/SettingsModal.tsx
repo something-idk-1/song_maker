@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { NOTE_NAMES, SCALE_NAMES, type ScaleName } from "../lib/scales";
 import { EXPERIMENTAL_FEATURE_KEYS, t, type Language } from "../lib/i18n";
 
@@ -28,10 +28,23 @@ interface SettingsModalProps {
   onExperimentalFeaturesChange: (enabled: boolean) => void;
   combinedAdvancedView: boolean;
   onCombinedAdvancedViewChange: (enabled: boolean) => void;
+  barCopyPasteEnabled: boolean;
+  onBarCopyPasteEnabledChange: (enabled: boolean) => void;
+  followPlayhead: boolean;
+  onFollowPlayheadChange: (enabled: boolean) => void;
 }
 
 export const BARS_DEFAULT_MAX = 16;
 export const BARS_EXPERIMENTAL_MAX = 25;
+
+// beatsPerBar * splitBeatsInto가 마디당 칸 수(stepsPerBar)가 되고, 여기에 bars까지 곱해지면
+// 전체 셀 개수(행 수 x stepCount)가 기하급수적으로 커짐 — 셀 하나하나가 실제 DOM 버튼이라
+// 너무 큰 조합(예: 25마디 x 12박자 x 4등분 = 1200칸)이면 브라우저가 버벅임. 그래서 이것도
+// bars/BPM이랑 같은 패턴으로 기본값은 낮게, 실험 기능 켰을 때만 더 크게 허용함.
+export const BEATS_PER_BAR_DEFAULT_MAX = 6;
+export const BEATS_PER_BAR_EXPERIMENTAL_MAX = 12;
+export const SPLIT_BEATS_DEFAULT_MAX = 2;
+export const SPLIT_BEATS_EXPERIMENTAL_MAX = 4;
 
 const OCTAVE_OPTIONS = [2, 3, 4, 5, 6];
 type Tab = "piano-roll" | "personal";
@@ -49,6 +62,10 @@ export function SettingsModal({
   onExperimentalFeaturesChange,
   combinedAdvancedView,
   onCombinedAdvancedViewChange,
+  barCopyPasteEnabled,
+  onBarCopyPasteEnabledChange,
+  followPlayhead,
+  onFollowPlayheadChange,
 }: SettingsModalProps) {
   const [tab, setTab] = useState<Tab>("piano-roll");
   const update = (patch: Partial<GridSettings>) => onChange({ ...settings, ...patch });
@@ -75,8 +92,8 @@ export function SettingsModal({
           <>
             <div className="modal-settings">
               <div className="modal-settings-row modal-settings-row-2">
-                <div className="modal-field">
-                  <span className="modal-field-label">Length</span>
+                <div className="setting-row">
+                  <span className="setting-label">Length</span>
                   <Stepper
                     value={settings.bars}
                     unit="bars"
@@ -86,8 +103,8 @@ export function SettingsModal({
                     language={language}
                   />
                 </div>
-                <div className="modal-field">
-                  <span className="modal-field-label">Scale</span>
+                <div className="setting-row">
+                  <span className="setting-label">Scale</span>
                   <select
                     className="modal-select"
                     value={settings.scale}
@@ -102,37 +119,59 @@ export function SettingsModal({
                 </div>
               </div>
 
-              <div className="modal-settings-row modal-settings-row-3">
-                <div className="modal-field">
-                  <span className="modal-field-label">Octave</span>
-                  <select
-                    className="modal-select"
-                    value={settings.startOctave}
-                    onChange={(e) => update({ startOctave: Number(e.target.value) })}
-                  >
-                    {OCTAVE_OPTIONS.map((oct) => (
-                      <option key={oct} value={oct}>
-                        {oct === 4 ? "Middle" : `Octave ${oct}`}
-                      </option>
-                    ))}
-                  </select>
+              <div className="modal-settings-row modal-settings-row-2">
+                <div className="setting-row">
+                  <span className="setting-label">Beats per bar</span>
+                  <Stepper
+                    value={settings.beatsPerBar}
+                    min={1}
+                    max={experimentalFeatures ? BEATS_PER_BAR_EXPERIMENTAL_MAX : BEATS_PER_BAR_DEFAULT_MAX}
+                    onChange={(v) => update({ beatsPerBar: v })}
+                    language={language}
+                  />
                 </div>
-                <div className="modal-field">
-                  <span className="modal-field-label">Note</span>
-                  <select
-                    className="modal-select"
-                    value={settings.startNote}
-                    onChange={(e) => update({ startNote: e.target.value })}
-                  >
-                    {NOTE_NAMES.map((name) => (
-                      <option key={name} value={name}>
-                        {name}
-                      </option>
-                    ))}
-                  </select>
+                <div className="setting-row">
+                  <span className="setting-label">Start on</span>
+                  <div className="modal-select-group">
+                    <select
+                      className="modal-select"
+                      value={settings.startOctave}
+                      onChange={(e) => update({ startOctave: Number(e.target.value) })}
+                    >
+                      {OCTAVE_OPTIONS.map((oct) => (
+                        <option key={oct} value={oct}>
+                          {oct === 4 ? "Middle" : `Octave ${oct}`}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="modal-select"
+                      value={settings.startNote}
+                      onChange={(e) => update({ startNote: e.target.value })}
+                    >
+                      {NOTE_NAMES.map((name) => (
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-                <div className="modal-field">
-                  <span className="modal-field-label">Range</span>
+              </div>
+
+              <div className="modal-settings-row modal-settings-row-2">
+                <div className="setting-row">
+                  <span className="setting-label">Split beats into</span>
+                  <Stepper
+                    value={settings.splitBeatsInto}
+                    min={1}
+                    max={experimentalFeatures ? SPLIT_BEATS_EXPERIMENTAL_MAX : SPLIT_BEATS_DEFAULT_MAX}
+                    onChange={(v) => update({ splitBeatsInto: v })}
+                    language={language}
+                  />
+                </div>
+                <div className="setting-row">
+                  <span className="setting-label">Range</span>
                   <Stepper
                     value={settings.rangeOctaves}
                     unit="octave"
@@ -203,6 +242,26 @@ export function SettingsModal({
                   <span className="modal-toggle-track" />
                 </label>
               </SettingRow>
+              <SettingRow label={t(language, "settings.barCopyPaste")}>
+                <label className="modal-toggle">
+                  <input
+                    type="checkbox"
+                    checked={barCopyPasteEnabled}
+                    onChange={(e) => onBarCopyPasteEnabledChange(e.target.checked)}
+                  />
+                  <span className="modal-toggle-track" />
+                </label>
+              </SettingRow>
+              <SettingRow label={t(language, "settings.followPlayhead")}>
+                <label className="modal-toggle">
+                  <input
+                    type="checkbox"
+                    checked={followPlayhead}
+                    onChange={(e) => onFollowPlayheadChange(e.target.checked)}
+                  />
+                  <span className="modal-toggle-track" />
+                </label>
+              </SettingRow>
               <p className="modal-hint">{t(language, "settings.hint")}</p>
             </div>
           </div>
@@ -238,12 +297,28 @@ function Stepper({
   onChange: (v: number) => void;
   language: Language;
 }) {
+  // 입력창에 타이핑하는 중간 값("1"만 친 상태처럼)까지 매 글자마다 클램프해버리면 타이핑이
+  // 막혀서 불편함 — 그래서 입력 중엔 그냥 문자열로 자유롭게 받아두고, 포커스를 벗어나거나
+  // 엔터를 눌렀을 때(commit)만 실제로 검증/클램프해서 onChange로 반영함.
+  const [draft, setDraft] = useState(String(value));
+
+  useEffect(() => {
+    setDraft(String(value));
+  }, [value]);
+
+  const commit = (raw: string) => {
+    const parsed = Number(raw);
+    if (raw.trim() === "" || !Number.isFinite(parsed)) {
+      setDraft(String(value));
+      return;
+    }
+    const clamped = Math.min(max, Math.max(min, Math.round(parsed)));
+    setDraft(String(clamped));
+    if (clamped !== value) onChange(clamped);
+  };
+
   return (
     <div className="stepper">
-      <span className="stepper-value">
-        {value}
-        {unit ? ` ${unit}` : ""}
-      </span>
       <button
         className="stepper-button"
         onClick={() => onChange(Math.max(min, value - step))}
@@ -251,6 +326,21 @@ function Stepper({
       >
         −
       </button>
+      <input
+        className="stepper-input"
+        type="number"
+        inputMode="numeric"
+        min={min}
+        max={max}
+        step={step}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={(e) => commit(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+        }}
+      />
+      {unit && <span className="stepper-unit">{unit}</span>}
       <button
         className="stepper-button"
         onClick={() => onChange(Math.min(max, value + step))}

@@ -183,22 +183,10 @@ export function useSequencer({
 
     let nextVoice: MelodyVoice;
     if (sampleUrls) {
-      // 디버깅: Tone.Sampler를 거치지 않고 직접 fetch해서 서버가 진짜 뭘 돌려주는지 확인.
-      // (상태코드/Content-Type/용량을 보면 실제 wav가 오는지, 엉뚱한 응답(예: index.html)이
-      // 오는지 바로 구분됨)
-      Object.entries(sampleUrls).forEach(([note, url]) => {
-        fetch(url).then((res) => {
-          console.log(
-            `[samples] fetch ${note} -> ${url} : status=${res.status} type=${res.headers.get("content-type")} length=${res.headers.get("content-length")}`,
-          );
-        });
-      });
-
       // baseUrl 없이 urls 값 자체를 루트 기준 절대경로로 넘김(위 getInstrumentSampleUrls 참고).
       nextVoice = new Tone.Sampler({
         urls: sampleUrls,
         release: 1,
-        onload: () => console.log(`[samples] ${instrumentId} 로딩 완료`),
         onerror: (err) => console.error(`[samples] ${instrumentId} 로딩 실패`, err),
       }).toDestination();
     } else {

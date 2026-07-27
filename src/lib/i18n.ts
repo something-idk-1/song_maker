@@ -39,6 +39,14 @@ const STRINGS = {
     en: "Combine melody + drum view (Advanced mode)",
     ko: "멜로디+드럼 화면 합치기 (고급 모드 전용)",
   },
+  "settings.barCopyPaste": {
+    en: "Bar copy/paste (Advanced mode)",
+    ko: "마디 복사/붙여넣기 (고급 모드 전용)",
+  },
+  "settings.followPlayhead": {
+    en: "Auto-scroll to follow playback",
+    ko: "재생 위치 자동 스크롤",
+  },
   "settings.hint": {
     en: "More themes and languages are coming soon. You can resize the grid with Ctrl+Scroll (shrinking only works at the 4-octave range).",
     ko: "테마/언어는 곧 더 추가될 예정이에요. 그리드 크기는 Ctrl+휠로 바꿀 수 있어요(4옥타브일 때만 축소 가능).",
@@ -51,6 +59,14 @@ const STRINGS = {
   "experimental.octaveTranspose": { en: "Ctrl+Arrow Octave Transpose", ko: "Ctrl+화살표 옥타브 이동" },
   "experimental.longerBars": { en: "Extended Length (up to 25 bars)", ko: "마디 길이 확장 (최대 25마디)" },
   "experimental.higherBpm": { en: "Extended BPM (up to 500)", ko: "BPM 확장 (최대 500)" },
+  "experimental.finerRhythm": {
+    en: "Extended beats per bar / split (up to 12 beats, 4-way split)",
+    ko: "박자/쪼개기 확장 (최대 12박자, 4등분)",
+  },
+
+  "barTools.selected": { en: "Bar", ko: "마디" },
+  "barTools.copy": { en: "Copy", ko: "복사" },
+  "barTools.paste": { en: "Paste", ko: "붙여넣기" },
 
   "export.close": { en: "Close", ko: "닫기" },
   "export.fileName": { en: "File name", ko: "파일 이름" },
@@ -117,6 +133,7 @@ export const EXPERIMENTAL_FEATURE_KEYS: StringKey[] = [
   "experimental.octaveTranspose",
   "experimental.longerBars",
   "experimental.higherBpm",
+  "experimental.finerRhythm",
 ];
 
 export const LOADING_TIP_KEYS: StringKey[] = [

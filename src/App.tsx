@@ -10,6 +10,8 @@ import { ExportNameModal } from "./components/ExportNameModal";
 import {
   SettingsModal,
   BARS_DEFAULT_MAX,
+  BEATS_PER_BAR_DEFAULT_MAX,
+  SPLIT_BEATS_DEFAULT_MAX,
   type GridSettings,
   type LanguageCode,
   type ThemeName,
@@ -95,22 +97,48 @@ function App() {
 
   const [experimentalFeatures, setExperimentalFeatures] = useState(false);
 
-  const [combinedAdvancedView, setCombinedAdvancedView] = useState(false);
+  const [combinedAdvancedView, setCombinedAdvancedView] = useState(true);
+
+  const [barCopyPasteEnabled, setBarCopyPasteEnabled] = useState(false);
+  const [selectedBar, setSelectedBar] = useState<number | null>(null);
+  const [barClipboard, setBarClipboard] = useState<Set<string> | null>(null);
+  const [copiedFromBar, setCopiedFromBar] = useState<number | null>(null);
+
+  const [followPlayhead, setFollowPlayhead] = useState(true);
 
   const handleExperimentalFeaturesChange = useCallback((enabled: boolean) => {
     setExperimentalFeatures(enabled);
     if (!enabled) {
-      setSettings((s) => (s.bars > BARS_DEFAULT_MAX ? { ...s, bars: BARS_DEFAULT_MAX } : s));
-      setDraftSettings((s) => (s.bars > BARS_DEFAULT_MAX ? { ...s, bars: BARS_DEFAULT_MAX } : s));
+      const clampSettings = (s: GridSettings): GridSettings => ({
+        ...s,
+        bars: Math.min(s.bars, BARS_DEFAULT_MAX),
+        beatsPerBar: Math.min(s.beatsPerBar, BEATS_PER_BAR_DEFAULT_MAX),
+        splitBeatsInto: Math.min(s.splitBeatsInto, SPLIT_BEATS_DEFAULT_MAX),
+      });
+      setSettings(clampSettings);
+      setDraftSettings(clampSettings);
       setBpm((b) => Math.min(b, BPM_DEFAULT_MAX));
     }
   }, []);
 
   const stepCount = settings.bars * settings.beatsPerBar * settings.splitBeatsInto;
+  const stepsPerBar = settings.beatsPerBar * settings.splitBeatsInto;
 
   useEffect(() => {
     setStartStep((v) => Math.min(v, stepCount - 1));
   }, [stepCount]);
+
+  useEffect(() => {
+    if (!barCopyPasteEnabled || mode !== "advanced") {
+      setSelectedBar(null);
+      setBarClipboard(null);
+      setCopiedFromBar(null);
+    }
+  }, [barCopyPasteEnabled, mode]);
+
+  const handleSelectBar = useCallback((barIndex: number) => {
+    setSelectedBar((cur) => (cur === barIndex ? null : barIndex));
+  }, []);
 
   const melodyRowCount = useMemo(
     () =>
@@ -165,6 +193,40 @@ function App() {
     setHistoryIndex((i) => Math.max(0, i - 1));
   }, []);
 
+  const handleCopyBar = useCallback(() => {
+    if (selectedBar === null) return;
+    const barStart = selectedBar * stepsPerBar;
+    const barEnd = barStart + stepsPerBar;
+    const copied = new Set<string>();
+    activeCells.forEach((key) => {
+      const [rowStr, stepStr] = key.split(":");
+      const step = Number(stepStr);
+      if (step >= barStart && step < barEnd) {
+        copied.add(cellKey(Number(rowStr), step - barStart));
+      }
+    });
+    setBarClipboard(copied);
+    setCopiedFromBar(selectedBar);
+  }, [selectedBar, stepsPerBar, activeCells]);
+
+  const handlePasteBar = useCallback(() => {
+    if (selectedBar === null || !barClipboard) return;
+    const barStart = selectedBar * stepsPerBar;
+    const barEnd = barStart + stepsPerBar;
+    const next = new Set<string>();
+    activeCells.forEach((key) => {
+      const [, stepStr] = key.split(":");
+      const step = Number(stepStr);
+      if (step >= barStart && step < barEnd) return;
+      next.add(key);
+    });
+    barClipboard.forEach((key) => {
+      const [rowStr, relStepStr] = key.split(":");
+      next.add(cellKey(Number(rowStr), barStart + Number(relStepStr)));
+    });
+    commitCells(next);
+  }, [selectedBar, barClipboard, stepsPerBar, activeCells, commitCells]);
+
   const handleTransposeOctave = useCallback(
     (direction: 1 | -1) => {
       const rowIndexByNote = new Map(noteRows.map((name, index) => [name, index]));
@@ -217,7 +279,12 @@ function App() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
-      const isTyping = ["INPUT", "SELECT", "TEXTAREA"].includes(target.tagName);
+      // 볼륨/템포 슬라이더(input type=range)는 태그가 INPUT이라 여기 걸리면 스페이스바가
+      // 재생/정지 대신 슬라이더를 움직여버리는 문제가 있었음 — range 슬라이더는 "타이핑 중"
+      // 취급하지 않고 단축키가 그대로 통하게 해줌(스페이스는 e.preventDefault()로 슬라이더
+      // 기본 동작도 같이 막아줌).
+      const isRangeInput = target.tagName === "INPUT" && (target as HTMLInputElement).type === "range";
+      const isTyping = ["INPUT", "SELECT", "TEXTAREA"].includes(target.tagName) && !isRangeInput;
       if (isTyping) return;
 
       if (e.code === "Space") {
@@ -341,6 +408,9 @@ function App() {
     setSettings(draftSettings);
     setHistory([migratedCells]);
     setHistoryIndex(0);
+    setSelectedBar(null);
+    setBarClipboard(null);
+    setCopiedFromBar(null);
     setShowSettings(false);
   }, [draftSettings, activeCells, noteRows, beatKitId]);
 
@@ -463,12 +533,26 @@ function App() {
       />
 
       <main className="main-content">
+        {mode === "advanced" && barCopyPasteEnabled && selectedBar !== null && (
+          <div className="bar-toolbar">
+            <span className="bar-toolbar-label">
+              {t(language, "barTools.selected")} {selectedBar + 1}
+            </span>
+            <button onClick={handleCopyBar}>{t(language, "barTools.copy")}</button>
+            <button onClick={handlePasteBar} disabled={!barClipboard}>
+              {t(language, "barTools.paste")}
+            </button>
+            <button className="bar-toolbar-close" onClick={() => setSelectedBar(null)} aria-label="close">
+              ×
+            </button>
+          </div>
+        )}
         {view === "piano-roll" || mode === "simple" ? (
           <PianoRollGrid
             ref={gridRef}
             noteRows={noteRows}
             stepCount={stepCount}
-            stepsPerBar={settings.beatsPerBar * settings.splitBeatsInto}
+            stepsPerBar={stepsPerBar}
             activeCells={activeCells}
             visibleRows={visibleRows}
             zoom={gridZoom}
@@ -482,6 +566,11 @@ function App() {
             showLabels={mode === "advanced"}
             startStep={startStep}
             pinDrumsToBottom={mode === "simple"}
+            barRulerEnabled={mode === "advanced" && barCopyPasteEnabled}
+            selectedBar={selectedBar}
+            copiedBar={copiedFromBar}
+            onSelectBar={handleSelectBar}
+            followPlayhead={followPlayhead}
           />
         ) : (
           <PlaylistPlaceholder language={language} />
@@ -567,6 +656,10 @@ function App() {
           onExperimentalFeaturesChange={handleExperimentalFeaturesChange}
           combinedAdvancedView={combinedAdvancedView}
           onCombinedAdvancedViewChange={setCombinedAdvancedView}
+          barCopyPasteEnabled={barCopyPasteEnabled}
+          onBarCopyPasteEnabledChange={setBarCopyPasteEnabled}
+          followPlayhead={followPlayhead}
+          onFollowPlayheadChange={setFollowPlayhead}
         />
       )}
     </div>
