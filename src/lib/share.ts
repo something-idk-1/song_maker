@@ -65,12 +65,22 @@ async function tryCreateServerShareLink(json: string): Promise<string | null> {
       headers: { "Content-Type": "application/json" },
       body: json,
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      // 실패 이유를 콘솔에 남겨서 왜 압축 링크로 폴백됐는지 바로 확인할 수 있게 함
+      // (예: 503 = 서버에 KV 환경변수가 아직 안 잡힘, 500 = redis 호출 자체가 실패함).
+      const bodyText = await res.text().catch(() => "");
+      console.error(`[share] /api/share POST failed: ${res.status} ${bodyText}`);
+      return null;
+    }
     const data = (await res.json()) as { id?: string };
-    if (!data.id) return null;
+    if (!data.id) {
+      console.error("[share] /api/share POST returned no id", data);
+      return null;
+    }
     return `${location.origin}${location.pathname}#id=${data.id}`;
-  } catch {
-    // 네트워크 에러, 서버 미설정(503) 등 — 호출부에서 압축 링크로 폴백함.
+  } catch (err) {
+    // 네트워크 에러 등 — 호출부에서 압축 링크로 폴백함.
+    console.error("[share] /api/share POST threw", err);
     return null;
   }
 }
