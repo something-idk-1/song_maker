@@ -481,7 +481,7 @@ function App() {
     [exportModalKind, performExportMidi, performExportWav],
   );
 
-  const handleShareLink = useCallback(() => {
+  const handleShareLink = useCallback(async () => {
     const payload: SharedPayload = {
       settings,
       mode,
@@ -489,7 +489,7 @@ function App() {
       bpm,
       cells: Array.from(activeCells),
     };
-    const url = encodeProjectToUrl(payload);
+    const url = await encodeProjectToUrl(payload);
     navigator.clipboard
       .writeText(url)
       .then(() => {
@@ -503,16 +503,18 @@ function App() {
   }, [settings, mode, instrument, bpm, activeCells, language]);
 
   useEffect(() => {
-    const restored = decodeProjectFromHash<SharedPayload>();
-    if (!restored) return;
-    setSettings(restored.settings);
-    setDraftSettings(restored.settings);
-    setMode(restored.mode);
-    setInstrument(restored.instrument);
-    setBpm(restored.bpm);
-    setHistory([new Set(restored.cells)]);
-    setHistoryIndex(0);
-    window.history.replaceState(null, "", location.pathname + location.search);
+    (async () => {
+      const restored = await decodeProjectFromHash<SharedPayload>();
+      if (!restored) return;
+      setSettings(restored.settings);
+      setDraftSettings(restored.settings);
+      setMode(restored.mode);
+      setInstrument(restored.instrument);
+      setBpm(restored.bpm);
+      setHistory([new Set(restored.cells)]);
+      setHistoryIndex(0);
+      window.history.replaceState(null, "", location.pathname + location.search);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
