@@ -58,8 +58,14 @@ async function redisGet(env, key) {
 export default async function handler(req, res) {
   const env = getEnv();
   if (!env) {
+    // 진단용: 값은 절대 안 보여주고, 이 함수 런타임에 실제로 어떤 환경변수 "이름"이 잡혀있는지만
+    // 알려줌 — Vercel 대시보드 스샷 왔다갔다 안 하고 바로 원인 확인하기 위함. 문제 해결되면 지울 예정.
+    const relatedKeys = Object.keys(process.env).filter(
+      (k) => k.includes("REDIS") || k.includes("KV_"),
+    );
     res.status(503).json({
       error: "share backend not configured (missing KV_REST_API_URL/TOKEN or UPSTASH_REDIS_REST_URL/TOKEN env vars)",
+      debugRelatedEnvKeysFound: relatedKeys,
     });
     return;
   }
