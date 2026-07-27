@@ -29,8 +29,11 @@ function makeId() {
 }
 
 function getEnv() {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  // Vercel Storage 탭에서 Upstash를 마켓플레이스로 연동하면 KV_REST_API_URL/KV_REST_API_TOKEN
+  // 이름으로 환경변수가 붙고, Upstash 계정에서 직접 연동/복사하면 UPSTASH_REDIS_REST_URL/
+  // UPSTASH_REDIS_REST_TOKEN 이름으로 붙음 — 둘 다 지원하게 해서 어느 쪽으로 설정해도 동작하게 함.
+  const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
   if (!url || !token) return null;
   return { url, token };
 }
@@ -56,7 +59,7 @@ export default async function handler(req, res) {
   const env = getEnv();
   if (!env) {
     res.status(503).json({
-      error: "share backend not configured (missing UPSTASH_REDIS_REST_URL/TOKEN env vars)",
+      error: "share backend not configured (missing KV_REST_API_URL/TOKEN or UPSTASH_REDIS_REST_URL/TOKEN env vars)",
     });
     return;
   }
