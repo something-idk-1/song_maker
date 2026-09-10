@@ -8,7 +8,7 @@
 - [`docs/DESIGN.md`](docs/DESIGN.md) — 디자인 시스템 (컬러/타이포/컴포넌트 스펙, 헤더·트랜스포트바 레이아웃 규칙)
 - [`AGENT.md`](AGENT.md) — AI 코딩 도구(Antigravity 등)에게 알려줄 기술 스택/코딩 규칙
 
-## 기술 스택 (예정)
+## 기술 스택
 
 - Vite + React + TypeScript
 - Tone.js (오디오 재생/스케줄링)

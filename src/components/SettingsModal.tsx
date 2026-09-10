@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { NOTE_NAMES, SCALE_NAMES, type ScaleName } from "../lib/scales";
 import { EXPERIMENTAL_FEATURE_KEYS, t, type Language } from "../lib/i18n";
+import { Dropdown } from "./Dropdown";
 
 export interface GridSettings {
   bars: number;
@@ -32,6 +33,8 @@ interface SettingsModalProps {
   onBarCopyPasteEnabledChange: (enabled: boolean) => void;
   followPlayhead: boolean;
   onFollowPlayheadChange: (enabled: boolean) => void;
+  playlistEnabled: boolean;
+  onPlaylistEnabledChange: (enabled: boolean) => void;
 }
 
 export const BARS_DEFAULT_MAX = 16;
@@ -66,6 +69,8 @@ export function SettingsModal({
   onBarCopyPasteEnabledChange,
   followPlayhead,
   onFollowPlayheadChange,
+  playlistEnabled,
+  onPlaylistEnabledChange,
 }: SettingsModalProps) {
   const [tab, setTab] = useState<Tab>("piano-roll");
   const update = (patch: Partial<GridSettings>) => onChange({ ...settings, ...patch });
@@ -105,17 +110,11 @@ export function SettingsModal({
                 </div>
                 <div className="setting-row">
                   <span className="setting-label">Scale</span>
-                  <select
-                    className="modal-select"
+                  <Dropdown
                     value={settings.scale}
-                    onChange={(e) => update({ scale: e.target.value as ScaleName })}
-                  >
-                    {SCALE_NAMES.map((name) => (
-                      <option key={name} value={name}>
-                        {name}
-                      </option>
-                    ))}
-                  </select>
+                    options={SCALE_NAMES.map((name) => ({ value: name, label: name }))}
+                    onChange={(v) => update({ scale: v as ScaleName })}
+                  />
                 </div>
               </div>
 
@@ -133,28 +132,19 @@ export function SettingsModal({
                 <div className="setting-row">
                   <span className="setting-label">Start on</span>
                   <div className="modal-select-group">
-                    <select
-                      className="modal-select"
-                      value={settings.startOctave}
-                      onChange={(e) => update({ startOctave: Number(e.target.value) })}
-                    >
-                      {OCTAVE_OPTIONS.map((oct) => (
-                        <option key={oct} value={oct}>
-                          {oct === 4 ? "Middle" : `Octave ${oct}`}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      className="modal-select"
+                    <Dropdown
+                      value={String(settings.startOctave)}
+                      options={OCTAVE_OPTIONS.map((oct) => ({
+                        value: String(oct),
+                        label: oct === 4 ? "Middle" : `Octave ${oct}`,
+                      }))}
+                      onChange={(v) => update({ startOctave: Number(v) })}
+                    />
+                    <Dropdown
                       value={settings.startNote}
-                      onChange={(e) => update({ startNote: e.target.value })}
-                    >
-                      {NOTE_NAMES.map((name) => (
-                        <option key={name} value={name}>
-                          {name}
-                        </option>
-                      ))}
-                    </select>
+                      options={NOTE_NAMES.map((name) => ({ value: name, label: name }))}
+                      onChange={(v) => update({ startNote: v })}
+                    />
                   </div>
                 </div>
               </div>
@@ -198,23 +188,21 @@ export function SettingsModal({
           <div className="modal-grid modal-grid-single">
             <div className="modal-column">
               <SettingRow label={t(language, "settings.theme")}>
-                <select
-                  className="modal-select"
+                <Dropdown
                   value={theme}
-                  onChange={(e) => onThemeChange(e.target.value as ThemeName)}
-                >
-                  <option value="monochrome">{t(language, "settings.monochromeDefault")}</option>
-                </select>
+                  options={[{ value: "monochrome", label: t(language, "settings.monochromeDefault") }]}
+                  onChange={(v) => onThemeChange(v as ThemeName)}
+                />
               </SettingRow>
               <SettingRow label={t(language, "settings.language")}>
-                <select
-                  className="modal-select"
+                <Dropdown
                   value={language}
-                  onChange={(e) => onLanguageChange(e.target.value as LanguageCode)}
-                >
-                  <option value="en">English</option>
-                  <option value="ko">한국어</option>
-                </select>
+                  options={[
+                    { value: "en", label: "English" },
+                    { value: "ko", label: "한국어" },
+                  ]}
+                  onChange={(v) => onLanguageChange(v as LanguageCode)}
+                />
               </SettingRow>
               <SettingRow label={t(language, "settings.experimentalFeatures")}>
                 <label className="modal-toggle">
@@ -233,11 +221,25 @@ export function SettingsModal({
                 </p>
               )}
               <SettingRow label={t(language, "settings.combinedAdvancedView")}>
-                <label className="modal-toggle">
+                <label className={`modal-toggle ${playlistEnabled ? "modal-toggle-disabled" : ""}`}>
                   <input
                     type="checkbox"
                     checked={combinedAdvancedView}
+                    disabled={playlistEnabled}
                     onChange={(e) => onCombinedAdvancedViewChange(e.target.checked)}
+                  />
+                  <span className="modal-toggle-track" />
+                </label>
+              </SettingRow>
+              {playlistEnabled && (
+                <p className="modal-hint-inline">{t(language, "settings.playlistLockHint")}</p>
+              )}
+              <SettingRow label={t(language, "settings.playlistEnabled")}>
+                <label className="modal-toggle">
+                  <input
+                    type="checkbox"
+                    checked={playlistEnabled}
+                    onChange={(e) => onPlaylistEnabledChange(e.target.checked)}
                   />
                   <span className="modal-toggle-track" />
                 </label>

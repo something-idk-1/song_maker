@@ -15,6 +15,7 @@ interface HeaderProps {
   onRestartMelody: () => void;
   onRestartBeat: () => void;
   language: Language;
+  playlistEnabled: boolean;
 }
 
 export function Header({
@@ -26,6 +27,7 @@ export function Header({
   onRestartMelody,
   onRestartBeat,
   language,
+  playlistEnabled,
 }: HeaderProps) {
   const [restartMenuOpen, setRestartMenuOpen] = useState(false);
   const restartMenuRef = useRef<HTMLDivElement>(null);
@@ -62,14 +64,14 @@ export function Header({
           </button>
         </div>
 
-        {mode === "advanced" && view === "playlist" && (
+        {mode === "advanced" && playlistEnabled && view === "playlist" && (
           <button className="icon-tool-button" title={t(language, "header.selectPattern")}>
             {t(language, "header.pattern")}
           </button>
         )}
       </div>
 
-      {mode === "advanced" && (
+      {mode === "advanced" && playlistEnabled && (
         <div className="nav-pill-group">
           <button
             className={`nav-pill ${view === "playlist" ? "active" : ""}`}

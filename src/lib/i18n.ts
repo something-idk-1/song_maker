@@ -47,6 +47,14 @@ const STRINGS = {
     en: "Auto-scroll to follow playback",
     ko: "재생 위치 자동 스크롤",
   },
+  "settings.playlistEnabled": {
+    en: "Playlist (Advanced mode)",
+    ko: "플레이리스트 (고급 모드 전용)",
+  },
+  "settings.playlistLockHint": {
+    en: "Locked off while Playlist is on",
+    ko: "플레이리스트 켜져있는 동안 꺼짐 고정",
+  },
   "settings.hint": {
     en: "More themes and languages are coming soon. You can resize the grid with Ctrl+Scroll (shrinking only works at the 4-octave range).",
     ko: "테마/언어는 곧 더 추가될 예정이에요. 그리드 크기는 Ctrl+휠로 바꿀 수 있어요(4옥타브일 때만 축소 가능).",

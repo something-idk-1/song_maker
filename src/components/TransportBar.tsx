@@ -1,9 +1,23 @@
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type TouchEvent as ReactTouchEvent,
+} from "react";
 import type { Instrument } from "../hooks/useSequencer";
 import type { AppMode } from "./Header";
 import { getInstrumentById, getInstrumentDisplayName } from "../lib/instruments";
 import { getBeatKitById, getBeatKitDisplayName } from "../lib/beatKits";
 import { t, type Language } from "../lib/i18n";
+
+// 슬라이더(템포/볼륨)를 드래그하고 나면 포커스가 그 슬라이더에 남아있어서, 그 상태에서
+// 스페이스바를 누르면 재생/정지 대신 슬라이더가 다시 반응하려는 것처럼 보이고 포커스 링도
+// 계속 남아있어서 "선택된" 것처럼 보임 — 마우스 떼는(또는 터치 끝나는) 순간 바로 blur시켜서
+// 조작 끝나면 포커스가 안 남게 함.
+function blurOnRelease(e: ReactMouseEvent<HTMLInputElement> | ReactTouchEvent<HTMLInputElement>) {
+  e.currentTarget.blur();
+}
 
 interface TransportBarProps {
   mode: AppMode;
@@ -172,6 +186,8 @@ export function TransportBar({
             max={bpmMax}
             value={bpm}
             onChange={(e) => onBpmChange(Number(e.target.value))}
+            onMouseUp={blurOnRelease}
+            onTouchEnd={blurOnRelease}
           />
           <div className="bpm-stepper">
             <input
@@ -206,6 +222,8 @@ export function TransportBar({
                 max={100}
                 value={volume}
                 onChange={(e) => onVolumeChange(Number(e.target.value))}
+                onMouseUp={blurOnRelease}
+                onTouchEnd={blurOnRelease}
               />
             </div>
           </div>
@@ -220,6 +238,8 @@ export function TransportBar({
                 max={100}
                 value={melodyVolume}
                 onChange={(e) => onMelodyVolumeChange(Number(e.target.value))}
+                onMouseUp={blurOnRelease}
+                onTouchEnd={blurOnRelease}
               />
             </div>
 
@@ -232,6 +252,8 @@ export function TransportBar({
                 max={100}
                 value={beatVolume}
                 onChange={(e) => onBeatVolumeChange(Number(e.target.value))}
+                onMouseUp={blurOnRelease}
+                onTouchEnd={blurOnRelease}
               />
             </div>
           </div>

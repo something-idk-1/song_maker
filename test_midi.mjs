@@ -51,3 +51,5 @@ activeCells.forEach((key) => {
 console.log("about to call toArray");
 const bytes = midi.toArray();
 console.log("done, bytes length", bytes.length);
+
+

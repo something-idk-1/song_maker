@@ -106,6 +106,23 @@ function App() {
 
   const [followPlayhead, setFollowPlayhead] = useState(true);
 
+  const [playlistEnabled, setPlaylistEnabled] = useState(false);
+  // 플레이리스트 켤 때 "합치기 뷰"를 강제로 끄는데, 끌 때는 켜기 전 값으로 되돌려야 해서 기억해둠.
+  const prevCombinedAdvancedViewRef = useRef(true);
+
+  const handlePlaylistEnabledChange = useCallback((enabled: boolean) => {
+    setPlaylistEnabled(enabled);
+    if (enabled) {
+      setCombinedAdvancedView((prev) => {
+        prevCombinedAdvancedViewRef.current = prev;
+        return false;
+      });
+    } else {
+      setCombinedAdvancedView(prevCombinedAdvancedViewRef.current);
+      setView((v) => (v === "playlist" ? "piano-roll" : v));
+    }
+  }, []);
+
   const [shareToastVisible, setShareToastVisible] = useState(false);
 
   const handleExperimentalFeaturesChange = useCallback((enabled: boolean) => {
@@ -542,6 +559,7 @@ function App() {
         onRestartMelody={handleRestartMelody}
         onRestartBeat={handleRestartBeat}
         language={language}
+        playlistEnabled={playlistEnabled}
       />
 
       <main className="main-content">
@@ -674,6 +692,8 @@ function App() {
           onBarCopyPasteEnabledChange={setBarCopyPasteEnabled}
           followPlayhead={followPlayhead}
           onFollowPlayheadChange={setFollowPlayhead}
+          playlistEnabled={playlistEnabled}
+          onPlaylistEnabledChange={handlePlaylistEnabledChange}
         />
       )}
     </div>

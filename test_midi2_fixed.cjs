@@ -54,3 +54,4 @@ console.log("start toArray");
 const t1 = Date.now();
 const bytes = midi.toArray();
 console.log("toArray done, bytes:", bytes.length, "time:", Date.now()-t1, "ms");
+
